@@ -54,13 +54,54 @@ if [ ${#auth[@]} -gt 0 ]; then
   rm build/Sottovoce.zip
 fi
 
-# LZMA-compressed image (ULMO, macOS 10.15+); Apple asks for the outermost container to be notarized too
+# The window that opens with the DMG: big icons, the app on the left, an arrow to Applications on the right. The
+# layout lives in the volume's .DS_Store, which only Finder writes, so a writable image is laid out through Finder
+# and then compressed
 stage=$(mktemp -d)
 ditto "$APP" "$stage/Sottovoce.app"
 ln -s /Applications "$stage/Applications"
-rm -f "$DMG"
-hdiutil create -volname Sottovoce -srcfolder "$stage" -format ULMO -quiet "$DMG"
+mkdir "$stage/.background"
+swift dmg-background.swift "$stage/.background"
+tiffutil -cathidpicheck "$stage/.background/background.png" "$stage/.background/background@2x.png" \
+  -out "$stage/.background/background.tiff" 2>/dev/null
+rm "$stage/.background/"*.png
+rw=$(mktemp -d)/Sottovoce.dmg
+hdiutil create -volname Sottovoce -srcfolder "$stage" -fs HFS+ -format UDRW -quiet "$rw"
 rm -rf "$stage"
+mnt=$(hdiutil attach "$rw" -readwrite -noverify -noautoopen | grep -o '/Volumes/.*$')
+# Bounds and positions match dmg-background.swift: a 640 x 400 window, icon centers at y 170
+osascript - "$mnt" <<'EOF'
+on run {mnt}
+  tell application "Finder"
+    set d to (POSIX file mnt as alias)
+    open d
+    set w to container window of d
+    set current view of w to icon view
+    set toolbar visible of w to false
+    set statusbar visible of w to false
+    set bounds of w to {200, 120, 840, 520}
+    set o to icon view options of w
+    set arrangement of o to not arranged
+    set icon size of o to 128
+    set text size of o to 13
+    set background picture of o to file ".background:background.tiff" of d
+    set position of item "Sottovoce.app" of d to {170, 170}
+    set position of item "Applications" of d to {470, 170}
+    update d without registering applications
+    delay 2
+    close w
+  end tell
+end run
+EOF
+# Finder writes .DS_Store on its own schedule
+for _ in $(seq 20); do [ -f "$mnt/.DS_Store" ] && break; sleep 0.5; done
+rm -rf "$mnt/.fseventsd"
+sync
+hdiutil detach "$mnt" -quiet
+# LZMA-compressed image (ULMO, macOS 10.15+); Apple asks for the outermost container to be notarized too
+rm -f "$DMG"
+hdiutil convert "$rw" -format ULMO -quiet -o "$DMG"
+rm -rf "$(dirname "$rw")"
 codesign --force --timestamp --sign "$SOTTOVOCE_SIGN_IDENTITY" "$DMG"
 if [ ${#auth[@]} -gt 0 ]; then
   notarize "$DMG" "$DMG"
