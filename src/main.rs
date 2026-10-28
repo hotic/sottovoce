@@ -33,6 +33,10 @@ struct Args {
     hotwords: String,
     #[arg(long, env = "SOTTOVOCE_FFMPEG", default_value = "/opt/homebrew/bin/ffmpeg")]
     ffmpeg: PathBuf,
+    /// Set by the dictation app: exit when the parent process goes away, even if it crashed, so no orphaned server
+    /// keeps the port and the GPU memory
+    #[arg(long, hide = true)]
+    exit_with_parent: bool,
 }
 
 fn expand_home(p: &str) -> PathBuf {
@@ -58,6 +62,11 @@ fn main() -> Result<()> {
         log::warn!("listening on {} without SOTTOVOCE_TOKEN; anyone on the network can call the API", args.host);
     }
 
+    if args.exit_with_parent {
+        watch_parent();
+    }
+    use_bundled_metallib()?;
+
     let preview = Some(args.preview_model.as_str()).filter(|m| !m.is_empty());
     let language = args.language.filter(|l| !l.is_empty());
     let engine = Engine::start(&args.model, preview, language)?;
@@ -75,6 +84,33 @@ fn main() -> Result<()> {
         axum::serve(listener, app).with_graceful_shutdown(shutdown()).await?;
         Ok(())
     })
+}
+
+/// Inside Sottovoce.app the server is Contents/MacOS/sottovoce-server and MLX's Metal kernels are
+/// Contents/Resources/mlx.metallib. The kernel path compiled into the binary only exists on the build machine, so point
+/// MLX at the bundled copy before the models load. A plain `cargo build` binary has no such file and keeps the default
+fn use_bundled_metallib() -> Result<()> {
+    let exe = std::env::current_exe().context("failed to locate the server executable")?;
+    let Some(lib) = exe.parent().and_then(|d| d.parent()).map(|c| c.join("Resources/mlx.metallib")) else {
+        return Ok(());
+    };
+    if lib.is_file() {
+        mlx_rs::metal::set_metallib_path(lib.to_string_lossy()).map_err(|e| anyhow::anyhow!("{e}"))?;
+        log::info!("using the bundled Metal kernels: {}", lib.display());
+    }
+    Ok(())
+}
+
+/// The parent becomes launchd (pid 1) once it exits; checking once a second is plenty for freeing the port
+fn watch_parent() {
+    let parent = std::os::unix::process::parent_id();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        if std::os::unix::process::parent_id() != parent {
+            log::info!("parent process {parent} exited, stopping");
+            std::process::exit(0);
+        }
+    });
 }
 
 /// `launchctl kickstart -k` sends SIGTERM, a terminal sends Ctrl-C; on either, stop accepting new requests and
