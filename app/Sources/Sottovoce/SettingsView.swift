@@ -187,32 +187,27 @@ struct SettingsView: View {
                     if on { shareToken = Pref.serverToken }
                 }
                 if shareServer {
-                    // One row however many interfaces there are; picking an address copies it
-                    LabeledContent("Address") {
-                        Menu {
-                            ForEach(addresses, id: \.self) { address in
-                                Button { copy(shareURL(address)) } label: { Text(verbatim: shareURL(address)) }
-                            }
+                    // One row per network, styled like the token: the address and a copy button. Tailscale is
+                    // recommended because it reaches this Mac from anywhere, the LAN address only on the same network
+                    ForEach(shareAddresses, id: \.address) { row in
+                        LabeledContent {
+                            copyable(shareURL(row.address))
                         } label: {
-                            Text(verbatim: addresses.first.map(shareURL) ?? "—")
+                            HStack(spacing: 6) {
+                                Text(row.tailscale ? "Tailscale" : "LAN")
+                                if row.tailscale && shareAddresses.count > 1 {
+                                    Text("Recommended")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 1)
+                                        .background(.quaternary, in: Capsule())
+                                }
+                            }
                         }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        .help("Copy an address")
                     }
                     LabeledContent("Token") {
-                        HStack {
-                            Text(verbatim: shareToken)
-                                .font(.system(.body, design: .monospaced))
-                                .textSelection(.enabled)
-                            Button {
-                                copy(shareToken)
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Copy")
-                        }
+                        copyable(shareToken)
                     }
                 }
             } footer: {
@@ -260,6 +255,34 @@ struct SettingsView: View {
     }
 
     private func shareURL(_ address: String) -> String { "http://\(address):\(LocalServer.port)" }
+
+    /// The first address on the LAN and the first on Tailscale (100.64.0.0/10), Tailscale last
+    private var shareAddresses: [(address: String, tailscale: Bool)] {
+        func isTailscale(_ ip: String) -> Bool {
+            let parts = ip.split(separator: ".").compactMap { Int($0) }
+            return parts.count == 4 && parts[0] == 100 && (64...127).contains(parts[1])
+        }
+        let lan = addresses.first { !isTailscale($0) }.map { (address: $0, tailscale: false) }
+        let tailscale = addresses.first(where: isTailscale).map { (address: $0, tailscale: true) }
+        return [lan, tailscale].compactMap { $0 }
+    }
+
+    /// A value to hand to another Mac: monospaced, selectable, with a copy button
+    private func copyable(_ value: String) -> some View {
+        HStack {
+            Text(verbatim: value)
+                .font(.system(.body, design: .monospaced))
+                .lineLimit(1)
+                .textSelection(.enabled)
+            Button {
+                copy(value)
+            } label: {
+                Image(systemName: "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .help("Copy")
+        }
+    }
 
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()

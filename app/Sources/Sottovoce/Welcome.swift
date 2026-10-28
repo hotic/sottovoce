@@ -484,10 +484,13 @@ private struct StepCard<Action: View, Below: View>: View {
         .animation(.easeInOut(duration: 0.25), value: status)
     }
 
+    /// A muted green: the system green is close to neon on macOS 26 and glares against the gray glass
+    private static var doneGreen: Color { Color(hue: 0.38, saturation: 0.52, brightness: 0.62) }
+
     private var badge: some View {
         ZStack {
             Circle()
-                .fill(status == .done ? AnyShapeStyle(.green) : AnyShapeStyle(.primary.opacity(status == .active ? 0.14 : 0.07)))
+                .fill(status == .done ? AnyShapeStyle(Self.doneGreen) : AnyShapeStyle(.primary.opacity(status == .active ? 0.14 : 0.07)))
             switch status {
             case .done:
                 Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
