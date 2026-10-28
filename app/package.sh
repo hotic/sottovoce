@@ -68,7 +68,15 @@ rm "$stage/.background/"*.png
 rw=$(mktemp -d)/Sottovoce.dmg
 hdiutil create -volname Sottovoce -srcfolder "$stage" -fs HFS+ -format UDRW -quiet "$rw"
 rm -rf "$stage"
+# Finder addresses the volume by name: with another "Sottovoce" mounted (an earlier DMG left open) it lays out the
+# wrong one and the script fails
+if [ -e /Volumes/Sottovoce ]; then
+  echo "A volume named Sottovoce is mounted; eject it first" >&2
+  exit 1
+fi
 mnt=$(hdiutil attach "$rw" -readwrite -noverify -noautoopen | grep -o '/Volumes/.*$')
+# A failed layout must not leave the half-made volume mounted
+trap 'hdiutil detach "$mnt" -quiet 2>/dev/null || true' EXIT
 # Bounds and positions match dmg-background.swift: a 640 x 400 window, icon centers at y 170
 osascript - "$mnt" <<'EOF'
 on run {mnt}
@@ -98,6 +106,7 @@ for _ in $(seq 20); do [ -f "$mnt/.DS_Store" ] && break; sleep 0.5; done
 rm -rf "$mnt/.fseventsd"
 sync
 hdiutil detach "$mnt" -quiet
+trap - EXIT
 # LZMA-compressed image (ULMO, macOS 10.15+); Apple asks for the outermost container to be notarized too
 rm -f "$DMG"
 hdiutil convert "$rw" -format ULMO -quiet -o "$DMG"
