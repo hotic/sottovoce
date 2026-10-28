@@ -123,6 +123,7 @@ private struct WelcomeView: View {
     @State private var lastTextAtOpen: String?
     @State private var rate = RateMeter()
     @State private var appeared = false
+    @State private var showDifference = false
     @FocusState private var tryFocused: Bool
 
     private let poll = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -217,12 +218,28 @@ private struct WelcomeView: View {
         }
     }
 
+    /// The "?" after the model step's title: how the two models differ
+    private var differenceButton: some View {
+        Button {
+            showDifference = true
+        } label: {
+            Image(systemName: "questionmark.circle")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("What's the difference?")
+        .accessibilityLabel("What's the difference?")
+        .popover(isPresented: $showDifference, arrowEdge: .bottom) { ModelComparison() }
+    }
+
     @ViewBuilder private var modelStep: some View {
         let status: StepStatus = modelDone ? .done : (accessibility && microphoneOK ? .active : .waiting)
         switch server.state {
         case .needsDownload:
             StepCard(number: 3, status: .active, title: "Download the speech model",
-                     detail: String(localized: "1.7B is the most accurate (2.3 GB), 0.6B is lighter (1.0 GB)")) {
+                     detail: String(localized: "Downloaded once, then kept on this Mac"), help: AnyView(differenceButton)) {
                 Button(String(localized: "Download \(SpeechModel.downloadSize(SpeechModel(rawValue: model) ?? .accurate, preview: livePreview))")) {
                     server.approveDownload()
                 }
@@ -236,7 +253,7 @@ private struct WelcomeView: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     Toggle(isOn: $livePreview) {
-                        Text("Live preview with SenseVoice Small, shows words as you speak (+0.9 GB)")
+                        Text("Live preview (+0.9 GB)")
                     }
                     .toggleStyle(.checkbox)
                     .font(.caption)
@@ -355,20 +372,60 @@ private enum StepStatus {
 
 /// One setup step: a numbered badge that turns into a checkmark, a title and a detail line, an action on the right,
 /// and optional content underneath (a progress bar, the try-it box)
+/// The model step's "What's the difference?" popover: the two models side by side, with the numbers from the
+/// README's model comparison (WenetSpeech error rates and latency on an M4 Pro, memory from Activity Monitor)
+private struct ModelComparison: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("1.7B makes fewer mistakes. 0.6B is about twice as fast and needs less than half the memory. Unless memory or disk space is tight, pick 1.7B.")
+            Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 6) {
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    Text(verbatim: "1.7B").fontWeight(.semibold)
+                    Text(verbatim: "0.6B").fontWeight(.semibold)
+                }
+                Divider()
+                row("Error rate, online videos", "4.2%", "6.1%")
+                row("Error rate, meetings", "6.6%", "6.7%")
+                row("Time per sentence", String(localized: "about 0.26 s"), String(localized: "about 0.14 s"))
+                row("Memory", "2.5 GB", "1.1 GB")
+                row("Download size", "2.3 GB", "1.0 GB")
+            }
+            Text("Live preview adds SenseVoice Small (0.9 GB): a quick draft shows up while you speak, and the chosen model writes the final text when you let go. With 1.7B, the two take about 5 GB of memory.")
+            Text("Error rates on 60 WenetSpeech sentences per set and times on an M4 Pro Mac mini, October 2026. Lower is better.")
+                .foregroundStyle(.secondary)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: 330, alignment: .leading)
+        .padding(16)
+    }
+
+    private func row(_ label: LocalizedStringKey, _ large: String, _ small: String) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(.secondary)
+            Text(verbatim: large).monospacedDigit()
+            Text(verbatim: small).monospacedDigit()
+        }
+    }
+}
+
 private struct StepCard<Action: View, Below: View>: View {
     let number: Int
     let status: StepStatus
     let title: LocalizedStringKey
     let detail: String
+    /// A small button right after the title, such as a "?" that explains the step
+    let help: AnyView?
     @ViewBuilder let action: () -> Action
     @ViewBuilder let below: () -> Below
 
-    init(number: Int, status: StepStatus, title: LocalizedStringKey, detail: String,
+    init(number: Int, status: StepStatus, title: LocalizedStringKey, detail: String, help: AnyView? = nil,
          @ViewBuilder action: @escaping () -> Action, @ViewBuilder below: @escaping () -> Below) {
         self.number = number
         self.status = status
         self.title = title
         self.detail = detail
+        self.help = help
         self.action = action
         self.below = below
     }
@@ -378,7 +435,10 @@ private struct StepCard<Action: View, Below: View>: View {
             HStack(spacing: 12) {
                 badge
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.system(size: 13, weight: .semibold))
+                    HStack(spacing: 5) {
+                        Text(title).font(.system(size: 13, weight: .semibold))
+                        help
+                    }
                     Text(detail)
                         .font(.caption)
                         .foregroundStyle(.secondary)

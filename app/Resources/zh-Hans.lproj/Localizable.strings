@@ -106,6 +106,7 @@
 "The server is missing from the app" = "app 里缺少服务端";
 "Can't reach Hugging Face: %@" = "连不上 Hugging Face：%@";
 "Not enough disk space: the models need %@" = "磁盘空间不足：模型需要 %@";
+"Invalid file name: %@" = "文件名无效：%@";
 "Downloaded file is damaged: %@" = "下载的文件已损坏：%@";
 "Download failed: HTTP %lld" = "下载失败：HTTP %lld";
 
@@ -135,10 +136,20 @@
 "Hold %@ and speak…" = "按住%@ 说话…";
 "That's it. It works the same in any app." = "就是这样，在任何 app 里都一样用。";
 "Get Started" = "开始使用";
-"1.7B is the most accurate (2.3 GB), 0.6B is lighter (1.0 GB)" = "1.7B 最准（2.3 GB），0.6B 更轻（1.0 GB）";
-"Live preview with SenseVoice Small, shows words as you speak (+0.9 GB)" = "实时预览：用 SenseVoice Small 边说边出字（再加 0.9 GB）";
 "Download %@" = "下载 %@";
 "Download in Background" = "后台下载";
 "Model not downloaded" = "模型尚未下载";
 "Speech model not downloaded" = "语音模型尚未下载";
 "Downloaded once, then kept on this Mac" = "只需下载一次，之后一直留在这台 Mac 上";
+"Live preview (+0.9 GB)" = "实时预览（+0.9 GB）";
+"What's the difference?" = "它们有什么区别？";
+"1.7B makes fewer mistakes. 0.6B is about twice as fast and needs less than half the memory. Unless memory or disk space is tight, pick 1.7B." = "1.7B 错字更少；0.6B 快一倍左右，内存不到一半。除非内存或硬盘紧张，选 1.7B 就好。";
+"Error rate, online videos" = "错字率（网络音视频）";
+"Error rate, meetings" = "错字率（会议录音）";
+"Time per sentence" = "每句耗时";
+"about 0.26 s" = "约 0.26 秒";
+"about 0.14 s" = "约 0.14 秒";
+"Memory" = "内存占用";
+"Download size" = "下载大小";
+"Live preview adds SenseVoice Small (0.9 GB): a quick draft shows up while you speak, and the chosen model writes the final text when you let go. With 1.7B, the two take about 5 GB of memory." = "实时预览会再加一个 SenseVoice Small（0.9 GB）：说话时先出一份草稿，松手后由选中的模型写出最终文字。和 1.7B 一起大约占 5 GB 内存。";
+"Error rates on 60 WenetSpeech sentences per set and times on an M4 Pro Mac mini, October 2026. Lower is better." = "错字率取自 WenetSpeech 两个测试集各 60 句，耗时在 M4 Pro Mac mini 上测得（2026 年 10 月），越低越好。";
