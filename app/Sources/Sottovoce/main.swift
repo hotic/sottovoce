@@ -8,6 +8,7 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = Controller()
     private let server = LocalServer()
+    private let updater = Updater()
     private var hud: HUD?
     private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hud = HUD(controller: controller)
         controller.notReady = { [server] in server.notReadyMessage }
         server.start()
+        updater.start()
         setupEditMenu()
         setupStatusItem()
         controller.startMonitoring()
@@ -123,6 +125,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             serverSeparator.isHidden = message == nil
         }
         .store(in: &cancellables)
+        if Updater.isAvailable {
+            menu.addItem(withTitle: String(localized: "Check for Updates…"), action: #selector(Updater.checkForUpdates),
+                         keyEquivalent: "").target = updater
+        }
         menu.addItem(withTitle: String(localized: "Settings…"), action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: String(localized: "Quit Sottovoce"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -190,7 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
             w.title = "Sottovoce"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(controller: controller, server: server))
+            w.contentView = NSHostingView(rootView: SettingsView(controller: controller, server: server, updater: updater))
             w.center()
             settingsWindow = w
         }

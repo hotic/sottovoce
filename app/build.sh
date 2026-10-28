@@ -2,8 +2,9 @@
 # Build and package Sottovoce.app: the menu bar app with the speech recognition server inside.
 # Usage: app/build.sh [--install]; --install copies it to /Applications and relaunches it.
 #
-# Layout: Contents/MacOS/Sottovoce is the app, Contents/MacOS/sottovoce-server the Rust server it starts, and
-# Contents/Resources/mlx.metallib MLX's Metal kernels, which the server looks for there.
+# Layout: Contents/MacOS/Sottovoce is the app, Contents/MacOS/sottovoce-server the Rust server it starts,
+# Contents/Resources/mlx.metallib MLX's Metal kernels, which the server looks for there, and
+# Contents/Frameworks/Sparkle.framework the updater.
 #
 # The server is built in its own target directory, target/app, for macOS 14 (the app's minimum): left to itself, MLX
 # compiles its Metal kernels for the build machine's macOS only. The first build there compiles MLX (about 5
@@ -47,11 +48,12 @@ SERVER="$ROOT/target/app"
   cargo build --release --locked --target-dir "$SERVER")
 
 swift build -c release
-BIN="$(swift build -c release --show-bin-path)/Sottovoce"
+PRODUCTS="$(swift build -c release --show-bin-path)"
+BIN="$PRODUCTS/Sottovoce"
 
 APP=build/Sottovoce.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Sottovoce"
 cp "$SERVER/release/sottovoce" "$APP/Contents/MacOS/sottovoce-server"
 cp "$SERVER/metal/mlx.metallib" "$APP/Contents/Resources/"
@@ -65,17 +67,36 @@ xcrun actool AppIcon.icon --compile "$APP/Contents/Resources" --app-icon AppIcon
   --minimum-deployment-target 14.0 --target-device mac --output-partial-info-plist "$(mktemp)" >/dev/null
 # Localizations (Localizable.strings, InfoPlist.strings)
 cp -R Resources/*.lproj "$APP/Contents/Resources/"
+# Sparkle's XPC services are only for sandboxed apps; Sottovoce isn't sandboxed, so they are left out
+ditto "$PRODUCTS/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+rm -rf "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices" "$APP/Contents/Frameworks/Sparkle.framework/XPCServices"
 
+entitlements=Sottovoce.entitlements
 if [ -n "${SOTTOVOCE_SIGN_IDENTITY:-}" ]; then
   sign=(--sign "$SOTTOVOCE_SIGN_IDENTITY" --timestamp)
 else
   ensure_identity
   sign=(--keychain "$KEYCHAIN" --sign "$IDENTITY")
+  # The hardened runtime only loads frameworks signed by the app's own team, and a self-signed certificate has no
+  # team, so dyld refuses Sparkle.framework. Source builds turn library validation off; release builds share the
+  # Developer ID's team and keep it
+  entitlements=$(mktemp)
+  cp Sottovoce.entitlements "$entitlements"
+  /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$entitlements"
+  # Updates are for release builds: a source build would replace itself with a release, whose different signature
+  # loses the permissions. Without a feed URL the updater stays off (Updater.swift)
+  /usr/libexec/PlistBuddy -c "Delete :SUFeedURL" "$APP/Contents/Info.plist"
 fi
+# Sparkle from the inside out, as its documentation does for builds outside Xcode: the installer tools, then the
+# framework
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+codesign --force "${sign[@]}" --options runtime "$SPARKLE/Versions/B/Autoupdate"
+codesign --force "${sign[@]}" --options runtime "$SPARKLE/Versions/B/Updater.app"
+codesign --force "${sign[@]}" --options runtime "$SPARKLE"
 # The server first: the app's signature seals it. The entitlements let the app use the microphone under the
 # hardened runtime; the server needs none
 codesign --force "${sign[@]}" --options runtime --identifier sh.asgard.sottovoce.server "$APP/Contents/MacOS/sottovoce-server"
-codesign --force "${sign[@]}" --options runtime --entitlements Sottovoce.entitlements --identifier sh.asgard.sottovoce "$APP"
+codesign --force "${sign[@]}" --options runtime --entitlements "$entitlements" --identifier sh.asgard.sottovoce "$APP"
 codesign -dr - "$APP" 2>&1 | grep designated
 echo "Packaged: $PWD/$APP $VERSION"
 

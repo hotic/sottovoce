@@ -20,6 +20,7 @@ If `AGENTS.local.md` exists (it is gitignored), read it too: it describes the ma
 - `app/`: macOS menu bar dictation app (Swift Package, packaged by `app/build.sh`), English UI with a zh-Hans localization in `app/Resources/`
 - `app/Sources/Sottovoce/LocalServer.swift`: runs the bundled server in "This Mac" mode; `Models.swift`: the model list and the downloader
 - `app/Sources/Sottovoce/Welcome.swift`: the first-run window (permissions, model size and download, a try-it box)
+- `app/Sources/Sottovoce/Updater.swift`: Sparkle updates for release builds; `app/appcast.sh` writes and signs the feed for a Release
 - `app/package.sh`: the Developer ID signed, notarized DMG; `.github/workflows/release.yml` runs it for a published GitHub Release
 - `app/AppIcon.icon`: the app icon as an Icon Composer document (gray gradient fill, one glass layer with the wave). `app/build.sh` compiles it with `actool`, so macOS 26 renders it as Liquid Glass and earlier systems get a flat `.icns`. Edit it in Icon Composer (inside Xcode.app); `media/icon.png` is the README copy of the rendered icon and must be re-exported when the icon changes
 - `media/readme/`: the README demo GIF in English and Chinese (talk while reading an issue, click back into Claude Code in a terminal, release). They were recorded from a throwaway harness that drives a copy of `HUD.swift` with scripted states and TTS audio levels next to mock browser and terminal windows (title bars drawn by the harness, the Claude Code screen copied from a real v2.1 session). It grabs its own windows with `CGWindowListCreateImage` and draws the cursor itself, which needs no Screen Recording permission. The harness is not in the repo, so re-record them when the HUD changes visibly
@@ -42,6 +43,7 @@ If `AGENTS.local.md` exists (it is gitignored), read it too: it describes the ma
 - When a user-visible app string changed, update `app/Resources/zh-Hans.lproj/Localizable.strings`
 - When the plist changed, run `plutil -lint` on it and reinstall (`launchctl bootout`, then `bootstrap`)
 - When `app/package.sh` or the release workflow changed, run `actionlint` and `app/package.sh` without notarization credentials (it still signs and builds the DMG); the notarization path only runs in CI
+- When the updater, Sparkle's version, or its signing changed, run an update end to end: two Developer ID builds under a test bundle id (0.1.0 and 0.1.1, `SUFeedURL` pointed at a local HTTP server), a DMG and feed signed with `sign_update --account sottovoce`, then install on quit, a manual check with install and relaunch, and a feed altered after signing, which must be refused. The harness is not in the repo
 - There are no unit tests. Add tests only for problems that actually happened, never tests that restate the implementation
 
 ## Constraints and pitfalls
@@ -66,6 +68,8 @@ If `AGENTS.local.md` exists (it is gitignored), read it too: it describes the ma
 ## Dictation app
 
 - Signing: `app/build.sh` signs with a self-signed certificate in a dedicated keychain, `~/Library/Keychains/sottovoce-signing.keychain-db` (empty password), unless `SOTTOVOCE_SIGN_IDENTITY` names a Developer ID identity. The designated requirement is identifier + certificate fingerprint, so rebuilding keeps the Accessibility / Microphone grants. Deleting that keychain, changing the bundle id, or switching between a source build and a release build (different certificates) requires granting again. If System Settings shows the switch on but the app says it is not authorized, the grant is bound to an old signature: clear it with `tccutil reset Accessibility sh.asgard.sottovoce` (Microphone likewise) and grant again
+- Updates (`Updater.swift`, Sparkle 2): release builds read `releases/latest/download/appcast.xml`, check once a day, download in the background and install when the app quits; "Check for Updates…" asks right away and offers install and relaunch. The feed and the DMG are both EdDSA-signed (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`, public key `SUPublicEDKey` in `Info.plist`), and Sparkle also requires the new app's Developer ID to match. `app/build.sh` removes `SUFeedURL` from source builds, so they never update themselves. Sparkle's XPC services are left out of the bundle because the app isn't sandboxed. Verified end to end locally in October 2026 (install on quit, manual install and relaunch, an altered feed refused); not yet through a real GitHub Release
+- Source builds are signed with a certificate that has no team, and the hardened runtime's library validation then refuses to load Sparkle.framework (dyld: "different Team IDs", the app dies at launch). `app/build.sh` adds `com.apple.security.cs.disable-library-validation` to source builds only; release builds share the Developer ID's team
 - Both kinds of build use the hardened runtime (notarization requires it), so the app declares `com.apple.security.device.audio-input` in `app/Sottovoce.entitlements`; without it recording fails silently. The server is signed first (identifier `sh.asgard.sottovoce.server`, no entitlements) because the app's signature seals it
 - Built-in server (`LocalServer`): in "This Mac" mode the app starts `Contents/MacOS/sottovoce-server` on port 8008 with `--exit-with-parent`, checks `/health` every 2 s, restarts it when the model, live preview, or sharing settings change, and gives up after 3 exits within a minute (showing the log's last error). If something already answers on 8008 when no own server runs (a LaunchAgent, a CLI run), the app uses it and starts nothing, so the LaunchAgent setup keeps working. The executable is `sottovoce-server`, not `sottovoce`, because `Contents/MacOS/Sottovoce` is the app and APFS is usually case-insensitive
 - `--exit-with-parent` polls the parent pid once a second: an app killed with SIGKILL, or by `pkill` during `app/build.sh --install` (NSApplication doesn't run `applicationWillTerminate` on SIGTERM), would otherwise leave the server holding the port and GPU memory
@@ -86,15 +90,16 @@ If `AGENTS.local.md` exists (it is gitignored), read it too: it describes the ma
 - Code comments, documentation, and commit messages are in English; commits follow Conventional Commits
 - Write commits and docs impersonally; when a person must be named, use their role
 - There is one model instance; the API's `model` field exists for compatibility and does not route (except `preview`)
-- Not implemented yet: request priority (dictation ahead of batch jobs), a Windows client, automatic app updates
+- Not implemented yet: request priority (dictation ahead of batch jobs), a Windows client
 
 ## Releasing
 
 1. Set the version in `Cargo.toml`; `app/build.sh` copies it into the app's `Info.plist`, so `app/Info.plist`'s own version is never shipped. Commit and push.
 2. Publish a GitHub Release tagged `v<version>`. `.github/workflows/release.yml` builds on a `macos-26` runner (most of the time goes to compiling MLX and waiting for notarization), checks the tag against `Cargo.toml`, and attaches `Sottovoce-<version>.dmg` and `Sottovoce.sha256`. A retry keeps a DMG already attached and recomputes `Sottovoce.sha256` from that DMG; a changed app needs a new version.
-3. A manual run (`workflow_dispatch`, publish unchecked) builds the same DMG as a workflow artifact without touching a Release.
+3. After the DMG, the workflow attaches `appcast.xml` (`app/appcast.sh`): the update feed for installed apps, signed with `SPARKLE_PRIVATE_KEY`, with the Release's notes as the text of the update dialog. It goes up last, so apps never see an update whose DMG is missing. Write the notes before publishing; they are copied into the feed once.
+4. A manual run (`workflow_dispatch`, publish unchecked) builds the same DMG as a workflow artifact without touching a Release.
 
-Repository secrets, the same values the acpira repository uses (it signs with the same Developer ID):
+Repository secrets; the Apple ones are the same values the acpira repository uses (it signs with the same Developer ID):
 
 | Secret | Source |
 | --- | --- |
@@ -102,5 +107,6 @@ Repository secrets, the same values the acpira repository uses (it signs with th
 | `APPLE_CERTIFICATE_PASSWORD` | The `.p12` export password |
 | `APPLE_API_KEY` / `APPLE_API_ISSUER` | Key ID and Issuer ID of an App Store Connect API key (Users and Access › Integrations) for notarization |
 | `APPLE_API_KEY_P8` | The contents of that key's `AuthKey_<id>.p8` |
+| `SPARKLE_PRIVATE_KEY` | The EdDSA key that signs updates: `generate_keys --account sottovoce -x <file>` (Sparkle's tool, in `app/.build/artifacts/sparkle/Sparkle/bin/` after a build) exports it from the release machine's login keychain. Its public half is `SUPublicEDKey`; losing the private key means installed apps can't verify updates any more, so keep a copy outside the repository |
 
 Without them the workflow stops at its first step: an unnotarized DMG is exactly what Gatekeeper calls damaged or unverified. To package locally, `app/package.sh` takes the same API key through `APPLE_API_KEY` / `APPLE_API_ISSUER` / `APPLE_API_KEY_PATH`, or a notarytool keychain profile through `SOTTOVOCE_NOTARY_PROFILE`; without either it builds a signed, unnotarized DMG for checking the packaging only.

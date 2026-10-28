@@ -128,3 +128,19 @@ jobs:
             gh release upload "$RELEASE_TAG" "app/build/$dmg"
           fi
           gh release upload "$RELEASE_TAG" app/build/Sottovoce.sha256 --clobber
+      # Sparkle's feed goes up last, so installed apps (which read releases/latest/download/appcast.xml) never see an
+      # update whose DMG is missing. It is signed over the DMG the Release holds, which may be one an earlier attempt
+      # attached
+      - name: Publish the update feed
+        if: env.PUBLISH == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::Missing repository secret SPARKLE_PRIVATE_KEY: without appcast.xml installed apps won't update to this Release"
+            exit 1
+          fi
+          dmg=$(basename app/build/Sottovoce-*.dmg)
+          gh release download "$RELEASE_TAG" --pattern "$dmg" --dir "$RUNNER_TEMP/feed"
+          app/appcast.sh "$RELEASE_TAG" "$RUNNER_TEMP/feed/$dmg"
+          gh release upload "$RELEASE_TAG" app/build/appcast.xml --clobber

@@ -42,5 +42,19 @@
 	<string>Connects to a Sottovoce server on another Mac on your network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Recordings are sent to the Sottovoce speech recognition server to be transcribed into text.</string>
+	<!-- Sparkle (Updater.swift). app/build.sh removes SUFeedURL from source builds, which turns updates off -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/hotic/sottovoce/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>alXGxU1jm2JeVDMQEClSdMW/GdzzA0d8fQJ793vFSMA=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<!-- app/appcast.sh signs the feed and the DMG; refuse either unsigned, and check the DMG before opening it -->
+	<key>SURequireSignedFeed</key>
+	<true/>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

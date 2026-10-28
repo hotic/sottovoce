@@ -63,6 +63,8 @@ The download itself is about 30 MB, because the models are not inside it. On fir
 
 Models are kept in `~/.cache/huggingface/hub`, where `huggingface-cli` keeps them too, so a model you already have is not downloaded again. An interrupted download picks up where it stopped. When huggingface.co can't be reached, the app tries the hf-mirror.com mirror.
 
+The app keeps itself up to date. Once a day it checks this repository's Releases, downloads a new version in the background, and installs it the next time it quits. Updates are signed, and the app refuses one that isn't. Turn this off with Update automatically in Settings › General; Check for Updates… in the menu checks right away.
+
 ## Run the server without the app
 
 The server is also a single command-line program, for a Mac without anyone logged in or for scripts. Building it needs [Rust](https://rustup.rs) and Xcode.
@@ -218,7 +220,7 @@ The forward passes of Qwen3-ASR and SenseVoice are ported layer by layer from [m
 
 ## Acknowledgements
 
-Sottovoce stands on [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR), [SenseVoice](https://github.com/FunAudioLLM/SenseVoice), [MLX](https://github.com/ml-explore/mlx), [mlx-rs](https://github.com/oxiglade/mlx-rs), and [mlx-audio](https://github.com/Blaizzy/mlx-audio). Model weights are downloaded separately and keep their own licenses.
+Sottovoce stands on [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR), [SenseVoice](https://github.com/FunAudioLLM/SenseVoice), [MLX](https://github.com/ml-explore/mlx), [mlx-rs](https://github.com/oxiglade/mlx-rs), and [mlx-audio](https://github.com/Blaizzy/mlx-audio), and updates through [Sparkle](https://sparkle-project.org). Model weights are downloaded separately and keep their own licenses.
 
 ## License
 

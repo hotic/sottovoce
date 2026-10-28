@@ -63,6 +63,8 @@ flowchart LR
 
 模型存放在 `~/.cache/huggingface/hub`，和 `huggingface-cli` 用的是同一个位置，已经下过的模型不会重复下载。下载中断后会接着下。连不上 huggingface.co 时，app 会改用 hf-mirror.com 镜像。
 
+app 会自己保持最新：每天检查一次本仓库的 Releases，有新版本就在后台下载，下次退出时装好。更新包带签名，没签名或签名不对的一律不装。不想自动更新，可以在「设置 › 通用」里关掉「自动更新」；菜单里的「检查更新…」会立刻检查一次。
+
 ## 不用 app，单独跑服务端
 
 服务端也是一个独立的命令行程序，适合没人登录的 Mac 或脚本调用。编译需要 [Rust](https://rustup.rs) 和 Xcode。
@@ -218,7 +220,7 @@ Qwen3-ASR 与 SenseVoice 的前向逐层移植自 [mlx-audio](https://github.com
 
 ## 致谢
 
-Sottovoce 建立在 [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR)、[SenseVoice](https://github.com/FunAudioLLM/SenseVoice)、[MLX](https://github.com/ml-explore/mlx)、[mlx-rs](https://github.com/oxiglade/mlx-rs) 和 [mlx-audio](https://github.com/Blaizzy/mlx-audio) 之上。模型权重需要单独下载，各自遵循原有的许可证。
+Sottovoce 建立在 [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR)、[SenseVoice](https://github.com/FunAudioLLM/SenseVoice)、[MLX](https://github.com/ml-explore/mlx)、[mlx-rs](https://github.com/oxiglade/mlx-rs) 和 [mlx-audio](https://github.com/Blaizzy/mlx-audio) 之上，自动更新用的是 [Sparkle](https://sparkle-project.org)。模型权重需要单独下载，各自遵循原有的许可证。
 
 ## 许可证
 

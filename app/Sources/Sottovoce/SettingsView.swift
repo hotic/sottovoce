@@ -9,6 +9,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var controller: Controller
     @ObservedObject var server: LocalServer
+    @ObservedObject var updater: Updater
 
     @AppStorage(Pref.triggerKey) private var triggerKey = TriggerKey.rightOption.rawValue
     @AppStorage(Pref.tapToToggle) private var tapToToggle = false
@@ -86,6 +87,9 @@ struct SettingsView: View {
                         launchAtLogin = SMAppService.mainApp.status == .enabled
                     }
                 }
+            if Updater.isAvailable {
+                Toggle("Update automatically", isOn: Binding(get: { updater.automatic }, set: { updater.automatic = $0 }))
+            }
         }
 
         if !controller.lastText.isEmpty {

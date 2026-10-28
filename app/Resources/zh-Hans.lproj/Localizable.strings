@@ -154,3 +154,6 @@
 "Download size" = "下载大小";
 "Live preview adds SenseVoice Small (0.9 GB): a quick draft shows up while you speak, and the chosen model writes the final text when you let go. With 1.7B, the two take about 5 GB of memory." = "实时预览会再加一个 SenseVoice Small（0.9 GB）：说话时先出一份草稿，松手后由选中的模型写出最终文字。和 1.7B 一起大约占 5 GB 内存。";
 "Error rates on 60 WenetSpeech sentences per set and times on an M4 Pro Mac mini, October 2026. Lower is better." = "错字率取自 WenetSpeech 两个测试集各 60 句，耗时在 M4 Pro Mac mini 上测得（2026 年 10 月），越低越好。";
+
+"Check for Updates…" = "检查更新…";
+"Update automatically" = "自动更新";
