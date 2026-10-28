@@ -259,11 +259,17 @@ private struct WelcomeView: View {
         .popover(isPresented: $showDifference, arrowEdge: .bottom) { ModelComparison() }
     }
 
+    /// Steps light up in order: until both permissions are granted the model step stays dimmed, whatever the
+    /// server is doing. Done shows as done regardless
+    private func inOrder(_ status: StepStatus) -> StepStatus {
+        status == .done || (accessibility && microphoneOK) ? status : .waiting
+    }
+
     @ViewBuilder private var modelStep: some View {
-        let status: StepStatus = modelDone ? .done : (accessibility && microphoneOK ? .active : .waiting)
+        let status = inOrder(modelDone ? .done : .active)
         switch server.state {
         case .needsDownload:
-            StepCard(number: 3, status: .active, title: "Download the speech model",
+            StepCard(number: 3, status: inOrder(.active), title: "Download the speech model",
                      detail: String(localized: "Downloaded once, then kept on this Mac"), help: AnyView(differenceButton)) {
                 Button(String(localized: "Download \(SpeechModel.downloadSize(SpeechModel(rawValue: model) ?? .accurate, preview: livePreview))")) {
                     server.approveDownload()
@@ -291,7 +297,7 @@ private struct WelcomeView: View {
                 ProgressView(value: Double(done), total: Double(max(total, 1)))
             }
         case .downloadFailed(let message):
-            StepCard(number: 3, status: .failed, title: "Download the speech model",
+            StepCard(number: 3, status: inOrder(.failed), title: "Download the speech model",
                      detail: String(localized: "Download failed: \(message)")) {
                 Button("Retry") { server.retry() }
             }
@@ -301,7 +307,7 @@ private struct WelcomeView: View {
                 ProgressView().controlSize(.small)
             }
         case .failed(let message):
-            StepCard(number: 3, status: .failed, title: "Download the speech model",
+            StepCard(number: 3, status: inOrder(.failed), title: "Download the speech model",
                      detail: String(localized: "The server stopped: \(message)")) {
                 Button("Restart") { server.retry() }
             }
@@ -315,7 +321,7 @@ private struct WelcomeView: View {
                 EmptyView()
             }
         case .off:
-            StepCard(number: 3, status: modelDone ? .done : .active, title: "Connect to the server",
+            StepCard(number: 3, status: status, title: "Connect to the server",
                      detail: modelDone ? String(localized: "Using \(Pref.server)") : String(localized: "Set the address in Settings › Server")) {
                 EmptyView()
             }

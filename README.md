@@ -86,7 +86,7 @@ curl -F file=@speech.m4a http://127.0.0.1:8008/v1/audio/transcriptions
 
 On its own the server never downloads models. `--model` takes a local directory or a Hugging Face repo name, read from `~/.cache/huggingface/hub`. A WAV that is already 16 kHz mono 16-bit is read directly. Other formats, such as MP3, M4A/AAC, CAF, and Opus, go through ffmpeg, so install it with `brew install ffmpeg` if you send them. The dictation app always sends that kind of WAV, so it doesn't need ffmpeg.
 
-When a server already answers on port 8008, the app uses it instead of starting its own.
+The app's server listens on port 8008; if another app needs that port, change it under Settings › Server. When a Sottovoce server already answers on the port, the app uses it instead of starting its own.
 
 ### Options
 

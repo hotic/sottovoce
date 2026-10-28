@@ -2,10 +2,10 @@ import Darwin
 import Foundation
 
 /// Runs the speech recognition server bundled in the app (Contents/MacOS/sottovoce-server) while the connection is
-/// "This Mac": downloads the models it needs, starts it on port 8008 (loopback only, or every interface when sharing
-/// is on), restarts it when a setting it depends on changes or it exits unexpectedly, and stops it with the app.
-/// A server that already answers on the port, such as one started from the command line or a LaunchAgent, is used
-/// as is and left alone.
+/// "This Mac": downloads the models it needs, starts it on the port setting (8008 by default; loopback only, or every
+/// interface when sharing is on), restarts it when a setting it depends on changes or it exits unexpectedly, and stops
+/// it with the app. A Sottovoce server that already answers on the port, such as one started from the command line or
+/// a LaunchAgent, is used as is and left alone.
 @MainActor
 final class LocalServer: ObservableObject {
     enum State: Equatable {
@@ -26,13 +26,13 @@ final class LocalServer: ObservableObject {
     /// Whether a server answers on the port right now; dictation is blocked with a reason while it doesn't
     @Published private(set) var serving = false
 
-    static let port = 8008
     static var logURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sottovoce/server.log")
     }
 
     /// What the server is started with; a change restarts it
     private struct Config: Equatable {
+        var port: Int
         var model: String
         var preview: String
         var share: Bool
@@ -114,7 +114,7 @@ final class LocalServer: ObservableObject {
         let share = d.bool(forKey: Pref.shareServer)
         let preview = d.bool(forKey: Pref.livePreview) || share
         // The token only matters while sharing; leaving it out otherwise keeps a token change from restarting the server
-        return Config(model: Pref.speechModel.rawValue, preview: preview ? SpeechModel.preview : "",
+        return Config(port: Pref.localPort, model: Pref.speechModel.rawValue, preview: preview ? SpeechModel.preview : "",
                       share: share, token: share ? Pref.serverToken : "")
     }
 
@@ -149,23 +149,33 @@ final class LocalServer: ObservableObject {
             // A model change waits for its download while the old process keeps serving, but turning sharing off or
             // replacing the token takes effect at once: otherwise the old process would stay reachable from the
             // network with the old token until the download finished, or forever if it failed
+            // A new port also takes effect at once, since the app already talks to the new one
             let revoked = processConfig.map { $0.share && (!want.share || $0.token != want.token) } ?? false
-            if processConfig != want && (missing(want).isEmpty || revoked) {
+            let moved = processConfig.map { $0.port != want.port } ?? false
+            if processConfig != want && (missing(want).isEmpty || revoked || moved) {
                 terminate()   // The termination handler clears the process; the next sync starts the new one
                 return
             }
-            serving = await healthy()
+            serving = await probe(port: want.port) == .sottovoce
             if missing(want).isEmpty { state = serving ? .running : .starting } else { ensureDownload(want) }
             return
         }
 
-        // Someone else's server on the port: use it, and don't download models it doesn't need
-        if await healthy() {
+        switch await probe(port: want.port) {
+        case .sottovoce:
+            // Someone else's server on the port: use it, and don't download models it doesn't need
             serving = true
             state = .external
             return
+        case .other:
+            // Another app holds the port. Checked before launching, since the server loads its models (seconds,
+            // gigabytes) before it tries to listen
+            serving = false
+            state = .failed(String(localized: "Port \(String(want.port)) is used by another app; choose another port"))
+            return
+        case .free:
+            serving = false
         }
-        serving = false
         guard missing(want).isEmpty else {
             ensureDownload(want)
             return
@@ -227,7 +237,7 @@ final class LocalServer: ObservableObject {
         }
         let p = Process()
         p.executableURL = exe
-        p.arguments = ["--host", config.share ? "0.0.0.0" : "127.0.0.1", "--port", String(Self.port),
+        p.arguments = ["--host", config.share ? "0.0.0.0" : "127.0.0.1", "--port", String(config.port),
                        "--model", config.model, "--preview-model", config.preview, "--exit-with-parent"]
         var env = ProcessInfo.processInfo.environment
         env["SOTTOVOCE_TOKEN"] = config.share ? config.token : nil
@@ -269,12 +279,23 @@ final class LocalServer: ObservableObject {
         process.terminate()
     }
 
-    private func healthy() async -> Bool {
-        guard let url = URL(string: "http://127.0.0.1:\(Self.port)/health") else { return false }
-        guard let (_, response) = try? await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 1)) else {
-            return false
+    private enum Probe { case sottovoce, other, free }
+
+    /// What answers on the port: a Sottovoce server (its /health returns {"ok": true, "model": ...}), something else,
+    /// or nothing. Another app's /health may well return 200 too, and must not be mistaken for a server to dictate with
+    private func probe(port: Int) async -> Probe {
+        guard let url = URL(string: "http://127.0.0.1:\(port)/health") else { return .free }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 1))
+            guard (response as? HTTPURLResponse)?.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  json["ok"] as? Bool == true, json["model"] is String else { return .other }
+            return .sottovoce
+        } catch let error as URLError where error.code == .cannotConnectToHost {
+            return .free
+        } catch {
+            return .other
         }
-        return (response as? HTTPURLResponse)?.statusCode == 200
     }
 
     /// Appends to ~/Library/Logs/Sottovoce/server.log, starting over once it passes 5 MB

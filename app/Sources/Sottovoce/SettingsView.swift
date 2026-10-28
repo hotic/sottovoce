@@ -24,6 +24,7 @@ struct SettingsView: View {
     @AppStorage(Pref.model) private var model = SpeechModel.accurate.rawValue
     @AppStorage(Pref.shareServer) private var shareServer = false
     @AppStorage(Pref.shareToken) private var shareToken = ""
+    @AppStorage(Pref.serverPort) private var serverPort = Pref.defaultPort
 
     @State private var devices: [AudioInputDevice] = []
     @State private var accessibility = AXIsProcessTrusted()
@@ -175,6 +176,11 @@ struct SettingsView: View {
                 Picker("Model", selection: $model) {
                     ForEach(SpeechModel.allCases) { Text($0.title).tag($0.rawValue) }
                 }
+                // Taken when Return is pressed or the field loses focus; an unusable number is dropped
+                TextField("Port", value: Binding(get: { Pref.localPort },
+                                                 set: { if Pref.validPort($0) { serverPort = $0 } }),
+                          format: .number.grouping(.never), prompt: Text(verbatim: String(Pref.defaultPort)))
+                    .multilineTextAlignment(.trailing)
                 serverStatus
             }
 
@@ -210,10 +216,6 @@ struct SettingsView: View {
                         copyable(shareToken)
                     }
                 }
-            } footer: {
-                if shareServer {
-                    footnote(String(localized: "On the other Mac, choose Remote and enter an address and the token"))
-                }
             }
         }
     }
@@ -240,9 +242,13 @@ struct SettingsView: View {
         case .downloadFailed(let message):
             status(String(localized: "Download failed"), ok: false, hint: message, button: "Retry") { server.retry() }
         case .starting:
+            // Two lines like the other states, so the rows below don't jump while the server restarts
             HStack {
                 ProgressView().controlSize(.small)
-                Text("Starting the server…")
+                VStack(alignment: .leading) {
+                    Text("Starting the server…")
+                    Text(verbatim: Pref.localServerURL).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
             }
         case .running:
             status(String(localized: "Running on this Mac"), ok: true, hint: Pref.localServerURL, action: nil)
@@ -254,7 +260,7 @@ struct SettingsView: View {
         }
     }
 
-    private func shareURL(_ address: String) -> String { "http://\(address):\(LocalServer.port)" }
+    private func shareURL(_ address: String) -> String { "http://\(address):\(String(Pref.localPort))" }
 
     /// The first address on the LAN and the first on Tailscale (100.64.0.0/10), Tailscale last
     private var shareAddresses: [(address: String, tailscale: Bool)] {

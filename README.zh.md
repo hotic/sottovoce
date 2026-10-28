@@ -86,7 +86,7 @@ curl -F file=@speech.m4a http://127.0.0.1:8008/v1/audio/transcriptions
 
 单独跑时，服务端从不下载模型。`--model` 可以是本地目录，也可以是 Hugging Face 仓库名，按仓库名时从 `~/.cache/huggingface/hub` 读取。已经是 16 kHz 单声道 16 bit 的 WAV 直接读取；MP3、M4A / AAC、CAF、Opus 等其他格式要经过 ffmpeg 解码，要传这些格式就先 `brew install ffmpeg`。听写 app 发的都是这种 WAV，用不到 ffmpeg。
 
-8008 端口上已经有服务在跑时，app 直接用它，不再自己启动。
+app 的服务端默认监听 8008 端口，和其他程序冲突时可以在「设置 › 服务」里改。端口上已经有 Sottovoce 服务端在跑时，app 直接用它，不再自己启动。
 
 ### 参数
 

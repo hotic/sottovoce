@@ -91,7 +91,20 @@ enum Pref {
     /// The user chose a model and started the first download; until then nothing is downloaded on its own
     static let downloadApproved = "downloadApproved"
 
-    static let localServerURL = "http://127.0.0.1:8008"
+    /// Port of the server on this Mac; 8008 unless another app needs it
+    static let serverPort = "serverPort"
+    static let defaultPort = 8008
+
+    /// The port setting, back to the default when it holds something unusable
+    static var localPort: Int {
+        let port = UserDefaults.standard.integer(forKey: serverPort)
+        return validPort(port) ? port : defaultPort
+    }
+
+    /// Ports below 1024 need root
+    static func validPort(_ port: Int) -> Bool { (1024...65535).contains(port) }
+
+    static var localServerURL: String { "http://127.0.0.1:\(localPort)" }
 
     static func register() {
         UserDefaults.standard.register(defaults: [
@@ -108,6 +121,7 @@ enum Pref {
             model: SpeechModel.accurate.rawValue,
             shareServer: false,
             shareToken: "",
+            serverPort: defaultPort,
             onboarded: false,
             downloadApproved: false,
         ])
@@ -137,7 +151,7 @@ enum Pref {
         return token
     }
 
-    /// Server address in use: fixed 127.0.0.1:8008 in local mode, the configured address in remote mode
+    /// Server address in use: 127.0.0.1 and the port setting in local mode, the configured address in remote mode
     /// (http:// may be omitted)
     static var server: String {
         guard connectionMode == .remote else { return localServerURL }

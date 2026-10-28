@@ -81,12 +81,13 @@
 "Use the server's LAN or Tailscale IP address" = "填服务端的局域网或 Tailscale IP";
 "Runs inside Sottovoce; models are kept in ~/.cache/huggingface" = "在 Sottovoce 里运行，模型存放在 ~/.cache/huggingface";
 "Model" = "模型";
+"Port" = "端口";
+"Port %@ is used by another app; choose another port" = "端口 %@ 被其他程序占用，换一个端口";
 "Qwen3-ASR 1.7B, most accurate (2.3 GB)" = "Qwen3-ASR 1.7B，最准（2.3 GB）";
 "Qwen3-ASR 0.6B, lighter (1.0 GB)" = "Qwen3-ASR 0.6B，更轻（1.0 GB）";
 "Started outside the app; its own model applies" = "在 app 之外启动，以它自己的模型为准";
 "Share with other devices" = "共享给其他设备";
 "Other Macs on your network or Tailscale can use this one" = "局域网或 Tailscale 里的其他 Mac 可以用这台识别";
-"On the other Mac, choose Remote and enter an address and the token" = "在另一台 Mac 上选「远程」，填地址和令牌";
 
 /* Server on this Mac: status */
 "Downloading models…" = "正在下载模型…";
