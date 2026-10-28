@@ -24,43 +24,50 @@ Sottovoce turns an Apple Silicon Mac into a speech-to-text server. It loads the 
 The name is the musical direction *sotto voce*: "in a low voice".
 
 - **High accuracy.** It runs [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B), an open speech recognition model that made far fewer mistakes than Whisper in our tests. It understands Chinese, English, and many other languages.
-- **Easy to run.** The server is one small program. There is no Python to install and nothing else to keep updated.
+- **Easy to install.** One app: open it and it downloads the speech model and runs the server by itself. No Python, no Terminal.
 - **Works with existing tools.** Apps that can use OpenAI's speech-to-text API can use Sottovoce instead by changing one address.
 - **Learns your words.** Add names and terms it keeps getting wrong, and choose exactly how they should be spelled.
 - **A dictation app.** Hold a key, speak, release. The text lands in whatever field has focus.
-- **One server for many machines.** Run it on a Mac mini and dictate from a MacBook anywhere on your Tailscale network.
+- **One server for many machines.** Turn on sharing on a Mac mini and dictate from a MacBook anywhere on your Tailscale network.
 
 ## How it fits together
 
 ```mermaid
 flowchart LR
   subgraph Server["Mac mini (Apple Silicon)"]
-    S["sottovoce server<br/>Qwen3-ASR on MLX<br/>:8008"]
-    A1["Sottovoce app"] -->|loopback, no token| S
-    C1["curl, scripts, bots"] -->|loopback| S
+    A1["Sottovoce app"] -->|starts| S["built-in server<br/>Qwen3-ASR on MLX<br/>:8008"]
+    C1["curl, scripts, bots"] -->|loopback, no token| S
   end
   A2["Sottovoce app on a MacBook"] -->|LAN / Tailscale + token| S
   C2["Any OpenAI-compatible client"] -->|LAN / Tailscale + token| S
 ```
 
-The server needs Apple Silicon. Clients only need HTTP, so any OS can use it. There is no native Windows dictation client yet. One is planned, and until then Windows machines can call the API directly.
+The server needs Apple Silicon. It runs inside the app, or on its own as a command-line program. Clients only need HTTP, so any OS can use it. There is no native Windows dictation client yet. One is planned, and until then Windows machines can call the API directly.
 
-## Quick start
+## Install
 
-Requirements: an Apple Silicon Mac on macOS 14 or later, [Rust](https://rustup.rs), Xcode, and Homebrew. There is no prebuilt download yet, so you build it from source.
+You need an Apple Silicon Mac with macOS 14 or later.
 
-Models are not included. Sottovoce never downloads anything on its own, so you fetch the model once from Hugging Face:
+1. Download `Sottovoce-<version>.dmg` from [Releases](https://github.com/hotic/sottovoce/releases/latest), open it, and drag Sottovoce into Applications. Apple has checked the app (it is notarized), so it opens without warnings.
+2. Open Sottovoce. It lives in the menu bar. Allow Accessibility and Microphone when macOS asks.
+3. Wait for the speech model to download. The menu bar menu and Settings show the progress.
+4. Hold right ⌥, talk, and let go.
+
+The download itself is about 30 MB, because the models are not inside it. On first launch the app fetches what it needs from Hugging Face, once:
 
 | Model | Download size | Role |
 |---|---|---|
 | `mlx-community/Qwen3-ASR-1.7B-8bit` | 2.3 GB | Default, most accurate |
-| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | Faster and lighter, a little less accurate |
-| `mlx-community/SenseVoiceSmall` | 0.9 GB | Optional, powers live preview in the dictation app |
+| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | Lighter, a little less accurate; choose it in Settings › Server |
+| `mlx-community/SenseVoiceSmall` | 0.9 GB | Powers live preview; skipped while live preview is off |
 
-The server program itself is about 25 MB.
+Models are kept in `~/.cache/huggingface/hub`, where `huggingface-cli` keeps them too, so a model you already have is not downloaded again. An interrupted download picks up where it stopped. When huggingface.co can't be reached, the app tries the hf-mirror.com mirror.
+
+## Run the server without the app
+
+The server is also a single command-line program, for a Mac without anyone logged in or for scripts. Building it needs [Rust](https://rustup.rs) and Xcode.
 
 ```sh
-brew install ffmpeg
 xcodebuild -downloadComponent MetalToolchain      # once; needed to compile MLX's Metal kernels
 huggingface-cli download mlx-community/Qwen3-ASR-1.7B-8bit
 huggingface-cli download mlx-community/SenseVoiceSmall   # optional, powers live preview
@@ -75,7 +82,9 @@ Then transcribe a file:
 curl -F file=@speech.m4a http://127.0.0.1:8008/v1/audio/transcriptions
 ```
 
-The server never downloads models. `--model` takes a local directory or a Hugging Face repo name, which is read from `~/.cache/huggingface/hub`. Audio goes through ffmpeg, so WAV, MP3, M4A/AAC, CAF, Opus, and other formats work. A WAV that is already 16 kHz mono 16-bit skips ffmpeg entirely.
+On its own the server never downloads models. `--model` takes a local directory or a Hugging Face repo name, read from `~/.cache/huggingface/hub`. A WAV that is already 16 kHz mono 16-bit is read directly. Other formats, such as MP3, M4A/AAC, CAF, and Opus, go through ffmpeg, so install it with `brew install ffmpeg` if you send them. The dictation app always sends that kind of WAV, so it doesn't need ffmpeg.
+
+When a server already answers on port 8008, the app uses it instead of starting its own.
 
 ### Options
 
@@ -106,7 +115,11 @@ Requests are processed one at a time in arrival order.
 
 `deploy/sh.asgard.sottovoce.server.plist` is a LaunchAgent template that starts the server at login and restarts it if it crashes. The install commands are in the comment at the top of the file. Logs go to `/tmp/sottovoce.log`, one line per transcription.
 
-### Serve other machines
+## Serve other machines
+
+In the app, turn on Settings › Server › Share with other devices. It lists this Mac's addresses and a token. On the other Mac, choose Remote and enter one of the addresses and the token.
+
+For a server run on its own:
 
 1. Set the host to `0.0.0.0`.
 2. Set `SOTTOVOCE_TOKEN` to a random value, for example from `openssl rand -hex 24`.
@@ -170,14 +183,16 @@ Hotwords are strong. A term with a similar-sounding neighbor will swallow it, ev
 - **Pick a field afterwards.** When focus is clearly not a text field, such as the Finder desktop or a list, the app waits for you to click into one. After 60 seconds the text goes to the clipboard.
 - **Clipboard safety net.** The result can stay on the clipboard, so a failed insert or a cancel never loses what you said.
 - **Fast start.** The microphone stays warm for 2 minutes after use. An always-on option also keeps the 0.3 seconds before you press the key.
-- **Local or remote.** Use the server on this Mac, or enter another machine's address and token.
+- **Built-in or remote.** By default the app runs the server itself: it starts with the app and stops when you quit. Or enter another Mac's address and token to use its server instead.
+
+The built-in server logs to `~/Library/Logs/Sottovoce/server.log`. To build the app from source:
 
 ```sh
-app/build.sh             # builds app/build/Sottovoce.app
+app/build.sh             # builds app/build/Sottovoce.app with the server inside
 app/build.sh --install   # also copies it to /Applications and relaunches it
 ```
 
-On first launch, allow Accessibility and Microphone in System Settings › Privacy & Security. The build script signs the app with a self-signed certificate that it creates in its own keychain. Rebuilds keep the same signature, so the permissions survive.
+The first build also compiles MLX, which takes about 5 minutes. A build from source is signed with a self-signed certificate that the build script creates in its own keychain. Rebuilds keep the same signature, so the Accessibility and Microphone permissions survive.
 
 ## Choosing the model
 
