@@ -5,8 +5,8 @@
 <h1 align="center">Sottovoce</h1>
 
 <p align="center">
-  <strong>留在你 Mac 上的语音识别。</strong><br>
-  一个常驻模型，一套 OpenAI 兼容接口，再加一个按住说话的听写 app。
+  <strong>轻量级、纯本地的语音识别服务。</strong><br>
+  按住说话，松手出字。原生液态玻璃界面，自带 OpenAI 兼容接口。
 </p>
 
 <p align="center">

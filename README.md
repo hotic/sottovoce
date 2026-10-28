@@ -5,8 +5,8 @@
 <h1 align="center">Sottovoce</h1>
 
 <p align="center">
-  <strong>Speech recognition that stays on your Mac.</strong><br>
-  One resident model, an OpenAI-compatible API, and a hold-to-talk dictation app.
+  <strong>Lightweight, fully local speech recognition.</strong><br>
+  Hold a key, talk, let go. A native Liquid Glass app with an OpenAI-compatible API built in.
 </p>
 
 <p align="center">
