@@ -22,7 +22,7 @@ If `AGENTS.local.md` exists (it is gitignored), read it too: it describes the ma
 - `app/Sources/Sottovoce/Welcome.swift`: the first-run window (permissions, model size and download, a try-it box)
 - `app/package.sh`: the Developer ID signed, notarized DMG; `.github/workflows/release.yml` runs it for a published GitHub Release
 - `app/AppIcon.icon`: the app icon as an Icon Composer document (gray gradient fill, one glass layer with the wave). `app/build.sh` compiles it with `actool`, so macOS 26 renders it as Liquid Glass and earlier systems get a flat `.icns`. Edit it in Icon Composer (inside Xcode.app); `media/icon.png` is the README copy of the rendered icon and must be re-exported when the icon changes
-- `media/readme/`: the README demo GIF in English and Chinese (talk while reading an issue, click into an agent chat box, release). They were screen-recorded from a throwaway harness that drives a copy of `HUD.swift` with scripted states and TTS audio levels; the harness is not in the repo, so re-record them when the HUD changes visibly
+- `media/readme/`: the README demo GIF in English and Chinese (talk while reading an issue, click back into Claude Code in a terminal, release). They were recorded from a throwaway harness that drives a copy of `HUD.swift` with scripted states and TTS audio levels next to mock browser and terminal windows (title bars drawn by the harness, the Claude Code screen copied from a real v2.1 session). It grabs its own windows with `CGWindowListCreateImage` and draws the cursor itself, which needs no Screen Recording permission. The harness is not in the repo, so re-record them when the HUD changes visibly
 
 ## Commands
 

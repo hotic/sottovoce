@@ -17,7 +17,7 @@
 
 <p align="center"><strong>English</strong> ｜ <a href="README.zh.md">简体中文</a></p>
 
-<p align="center"><img src="media/readme/dictation-en.gif" width="960" alt="Holding the right Option key while reading a GitHub issue, talking, then clicking into an agent chat box and letting go: the whole request appears in the box."></p>
+<p align="center"><img src="media/readme/dictation-en.gif" width="960" alt="Holding the right Option key while reading a GitHub issue, talking, then clicking into Claude Code in a terminal and letting go: the whole request appears at its prompt."></p>
 
 Sottovoce turns an Apple Silicon Mac into a speech-to-text server. It loads the speech model once and keeps it ready, so a short sentence comes back as text in about a third of a second. Apps on the same Mac can use it, and so can your other computers over the local network or Tailscale. Your audio never leaves your own machines.
 

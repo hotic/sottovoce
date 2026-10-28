@@ -17,7 +17,7 @@
 
 <p align="center"><a href="README.md">English</a> ｜ <strong>简体中文</strong></p>
 
-<p align="center"><img src="media/readme/dictation-zh.gif" width="960" alt="一边看 GitHub issue 一边按住右 Option 键说话，然后点进 agent 的聊天框松手，整段需求直接出现在输入框里。"></p>
+<p align="center"><img src="media/readme/dictation-zh.gif" width="960" alt="一边看 GitHub issue 一边按住右 Option 键说话，然后点回终端里的 Claude Code 松手，整段需求直接出现在它的输入行里。"></p>
 
 Sottovoce 把一台 Apple Silicon Mac 变成语音转文字服务器。语音模型只加载一次、一直待命，一句话说完，大约三分之一秒就能拿到文字。同一台 Mac 上的 app 能用，你的其他电脑也能通过局域网或 Tailscale 来用。录音始终留在你自己的机器上。
 
