@@ -1,0 +1,30 @@
+[package]
+name = "sottovoce"
+version = "0.2.0"
+edition = "2021"
+description = "Always-on local speech recognition server (Qwen3-ASR on MLX, tuned for Chinese) with an OpenAI-compatible API"
+publish = false
+
+[dependencies]
+# Inference: Rust bindings for MLX; MLX is compiled from source at build time (needs the Xcode Metal toolchain)
+mlx-rs = "0.32"
+tokenizers = { version = "0.22", default-features = false, features = ["onig"] }
+realfft = "3.5"
+# HTTP
+axum = { version = "0.8", features = ["multipart"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+# Misc
+clap = { version = "4", features = ["derive", "env"] }
+fancy-regex = "0.14"
+tempfile = "3"
+anyhow = "1"
+log = "0.4"
+env_logger = { version = "0.11", default-features = false }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[profile.release]
+debug = "line-tables-only"

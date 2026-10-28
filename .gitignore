@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+/logs/
+.vscode/
+/target/
+# Machine-specific deployment notes
+AGENTS.local.md
