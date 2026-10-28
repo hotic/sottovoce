@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Sottovoce server as a per-user LaunchAgent. It runs inside the GUI session so it can use the GPU.
+  Build the release binary first, then install it with the repo path filled in:
+
+    sed "s#__REPO__#$PWD#" deploy/sh.asgard.sottovoce.server.plist > ~/Library/LaunchAgents/sh.asgard.sottovoce.server.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/sh.asgard.sottovoce.server.plist
+
+  Restart after a rebuild: launchctl kickstart -k gui/$(id -u)/sh.asgard.sottovoce.server
+  KeepAlive with ThrottleInterval retries every 30 s, which also covers a repo on an external volume
+  that is not mounted yet at login.
+  Serving other machines (LAN, Tailscale): change the host argument below to 0.0.0.0 and add SOTTOVOCE_TOKEN to
+  EnvironmentVariables. Requests from loopback never need the token. Put the token only in the
+  installed copy (chmod 600), never in this template.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>sh.asgard.sottovoce.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__REPO__/target/release/sottovoce</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8008</string>
+    <!-- Skip the SenseVoice preview model to save about 2.5 GB. Remove this line to enable live preview. -->
+    <string>--preview-model=</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>/tmp/sottovoce.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/sottovoce.log</string>
+</dict>
+</plist>
