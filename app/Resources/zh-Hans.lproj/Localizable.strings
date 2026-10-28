@@ -1,0 +1,82 @@
+/* Simplified Chinese UI strings. Keys are the English source strings in the Swift code. */
+
+/* Menu bar and Edit menu */
+"Settings…" = "设置…";
+"Quit Sottovoce" = "退出 Sottovoce";
+"Edit" = "编辑";
+"Undo" = "撤销";
+"Redo" = "重做";
+"Cut" = "剪切";
+"Copy" = "拷贝";
+"Paste" = "粘贴";
+"Select All" = "全选";
+
+/* HUD */
+"Click a text field" = "点选输入框";
+"Copied to clipboard" = "已复制到剪贴板";
+
+/* Errors */
+"Microphone access not granted" = "麦克风未授权";
+"No microphone available" = "没有可用的麦克风";
+"Microphone failed to start: %@" = "麦克风启动失败：%@";
+"Invalid server address" = "服务地址无效";
+"Can't reach the transcription service" = "连不上识别服务";
+"Invalid token" = "令牌错误";
+"Transcription service returned %lld" = "识别服务返回 %lld";
+
+/* Settings tabs */
+"General" = "通用";
+"Shortcut" = "快捷键";
+"Dictation" = "听写";
+"Server" = "服务";
+
+/* General page */
+"Status" = "状态";
+"Accessibility" = "辅助功能";
+"Used to detect the shortcut and paste text" = "用于监听快捷键和粘贴文字";
+"Microphone" = "麦克风";
+"Used for recording" = "用于录音";
+"Transcription service" = "识别服务";
+"Checking…" = "检测中…";
+"Invalid token: %@" = "令牌错误：%@";
+"No remote address set" = "未填写远程地址";
+"Can't reach %@" = "连不上：%@";
+"Grant Access" = "去授权";
+"Launch at login" = "登录时启动";
+"Last transcription" = "最近一次识别";
+
+/* Shortcut page */
+"Hold to talk" = "按住说话";
+"Hold to dictate, release to finish" = "按住可语音输入，松手结束";
+"Tap for hands-free" = "轻按开启免提";
+"Tap once to start recording, tap again to finish, Esc to cancel" = "轻按一下开始录音，再按一下结束，Esc 取消";
+"Pressing another key while holding is treated as a key combo and cancels the recording. Pick another key if your external keyboard has no fn key." = "按住时又按了其他键会当作组合键，自动取消录音。外接键盘没有 fn 键时选其他键。";
+"Right ⌥" = "右 ⌥";
+"Right ⌘" = "右 ⌘";
+"Right ⌃" = "右 ⌃";
+"Right ⇧" = "右 ⇧";
+
+/* Dictation page */
+"Automatic" = "自动检测";
+"Default microphone for dictation" = "设置语音输入的默认麦克风";
+"Keep microphone on" = "麦克风常开";
+"Records the instant you press without losing the start; the orange mic dot in the menu bar stays on, and Bluetooth headsets stay in call quality" = "按下即录、不丢开头，菜单栏麦克风橙点会常亮；蓝牙耳机会一直处于通话音质";
+"Live preview" = "实时预览";
+"Writes the fast model's result into the text field as you speak and replaces it with the final text on release; unsupported text fields get the text only on release" = "说话时把快速模型的结果直接写进输入框，松手后原地替换成定稿；不支持的输入框只在松手后插入";
+"Punctuation" = "标点设置";
+"Smart punctuation" = "智能标点";
+"Add full punctuation" = "添加完整标点";
+"Drop trailing punctuation" = "省略句末标点";
+"Spaces instead of punctuation" = "空格代替标点";
+"Keep result on clipboard" = "识别结果留在剪贴板";
+"Also copies the result to the clipboard, so you can still paste it if it wasn't inserted or you cancelled; when off, the previous clipboard contents are restored after pasting" = "识别完同时复制到剪贴板，没插进输入框或中途取消也能直接粘贴；关掉则粘贴后恢复原剪贴板内容";
+
+/* Server page */
+"Connection" = "连接方式";
+"This Mac" = "本机";
+"Remote" = "远程";
+"Address" = "地址";
+"Token" = "令牌";
+"SOTTOVOCE_TOKEN of the server" = "服务端的 SOTTOVOCE_TOKEN";
+"Connect to the Sottovoce server on another machine on your LAN or Tailscale. Use the server's LAN or Tailscale IP; with a fake-IP proxy (e.g. Clash) running, hostnames may resolve to fake addresses." = "连接局域网或 Tailscale 里另一台机器上的 Sottovoce 服务端。建议填服务端的局域网或 Tailscale IP，开着 Clash 之类的 fake-ip 代理时机器名可能被解析到假地址。";
+"Use the Sottovoce server running on this Mac (127.0.0.1:8008)." = "使用本机常驻的 Sottovoce 服务端（127.0.0.1:8008）。";

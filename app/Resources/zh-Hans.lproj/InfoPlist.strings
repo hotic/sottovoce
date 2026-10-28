@@ -1,0 +1,2 @@
+/* Simplified Chinese Info.plist strings */
+"NSMicrophoneUsageDescription" = "录音后交给 Sottovoce 语音识别服务转写成文字。";
