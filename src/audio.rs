@@ -38,7 +38,14 @@ pub fn decode(data: &[u8], suffix: &str, ffmpeg: &PathBuf) -> Result<Vec<f32>, D
             .arg(f.path())
             .args(["-f", "f32le", "-ac", "1", "-ar", &SAMPLE_RATE.to_string(), "pipe:1"])
             .output()
-            .map_err(|e| anyhow!("failed to run ffmpeg ({}): {e}", ffmpeg.display()))?;
+            .map_err(|e| match e.kind() {
+                // Only 16 kHz mono WAV skips ffmpeg; the dictation app sends that, other clients may not
+                std::io::ErrorKind::NotFound => anyhow!(
+                    "ffmpeg not found at {}; install it (brew install ffmpeg) to accept audio other than 16 kHz mono 16-bit WAV",
+                    ffmpeg.display()
+                ),
+                _ => anyhow!("failed to run ffmpeg ({}): {e}", ffmpeg.display()),
+            })?;
         if !out.status.success() {
             bail!("audio decoding failed: {}", String::from_utf8_lossy(&out.stderr).trim());
         }
