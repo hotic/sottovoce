@@ -49,8 +49,8 @@
 "Hold to talk" = "按住说话";
 "Hold to dictate, release to finish" = "按住可语音输入，松手结束";
 "Tap for hands-free" = "轻按开启免提";
-"Tap once to start recording, tap again to finish, Esc to cancel" = "轻按一下开始录音，再按一下结束，Esc 取消";
-"Pressing another key while holding is treated as a key combo and cancels the recording. Pick another key if your external keyboard has no fn key." = "按住时又按了其他键会当作组合键，自动取消录音。外接键盘没有 fn 键时选其他键。";
+"Tap to start, tap again to finish, Esc to cancel" = "点一下开始，再点一下结束，Esc 取消";
+"Pressing another key while holding cancels, as it's likely a shortcut" = "按住时再按别的键会取消，那多半是快捷键";
 "Right ⌥" = "右 ⌥";
 "Right ⌘" = "右 ⌘";
 "Right ⌃" = "右 ⌃";
@@ -60,16 +60,16 @@
 "Automatic" = "自动检测";
 "Default microphone for dictation" = "设置语音输入的默认麦克风";
 "Keep microphone on" = "麦克风常开";
-"Records the instant you press without losing the start; the orange mic dot in the menu bar stays on, and Bluetooth headsets stay in call quality" = "按下即录、不丢开头，菜单栏麦克风橙点会常亮；蓝牙耳机会一直处于通话音质";
+"Catches the first word; the mic indicator stays on" = "不漏开头，但麦克风指示灯会一直亮";
 "Live preview" = "实时预览";
-"Writes the fast model's result into the text field as you speak and replaces it with the final text on release; unsupported text fields get the text only on release" = "说话时把快速模型的结果直接写进输入框，松手后原地替换成定稿；不支持的输入框只在松手后插入";
+"Shows words in the text field while you speak" = "说话时文字就出现在输入框里";
 "Punctuation" = "标点设置";
 "Smart punctuation" = "智能标点";
 "Add full punctuation" = "添加完整标点";
 "Drop trailing punctuation" = "省略句末标点";
 "Spaces instead of punctuation" = "空格代替标点";
 "Keep result on clipboard" = "识别结果留在剪贴板";
-"Also copies the result to the clipboard, so you can still paste it if it wasn't inserted or you cancelled; when off, the previous clipboard contents are restored after pasting" = "识别完同时复制到剪贴板，没插进输入框或中途取消也能直接粘贴；关掉则粘贴后恢复原剪贴板内容";
+"In case pasting fails or you cancel" = "插入失败或取消时还能再粘贴";
 
 /* Server page */
 "Connection" = "连接方式";
@@ -78,15 +78,15 @@
 "Address" = "地址";
 "Token" = "令牌";
 "SOTTOVOCE_TOKEN of the server" = "服务端的 SOTTOVOCE_TOKEN";
-"Connect to the Sottovoce server on another machine on your LAN or Tailscale. Use the server's LAN or Tailscale IP; with a fake-IP proxy (e.g. Clash) running, hostnames may resolve to fake addresses." = "连接局域网或 Tailscale 里另一台机器上的 Sottovoce 服务端。建议填服务端的局域网或 Tailscale IP，开着 Clash 之类的 fake-ip 代理时机器名可能被解析到假地址。";
-"Speech recognition runs on this Mac, inside Sottovoce. Models are downloaded once and kept in ~/.cache/huggingface." = "语音识别在本机的 Sottovoce 里运行。模型只需下载一次，存放在 ~/.cache/huggingface。";
+"Use the server's LAN or Tailscale IP address" = "填服务端的局域网或 Tailscale IP";
+"Runs inside Sottovoce; models are kept in ~/.cache/huggingface" = "在 Sottovoce 里运行，模型存放在 ~/.cache/huggingface";
 "Model" = "模型";
 "Qwen3-ASR 1.7B, most accurate (2.3 GB)" = "Qwen3-ASR 1.7B，最准（2.3 GB）";
 "Qwen3-ASR 0.6B, lighter (1.0 GB)" = "Qwen3-ASR 0.6B，更轻（1.0 GB）";
-"This server was started outside the app (for example from the command line or a LaunchAgent), so its own model and settings apply." = "这个服务端是在 app 之外启动的（比如命令行或 LaunchAgent），以它自己的模型和设置为准。";
+"Started outside the app; its own model applies" = "在 app 之外启动，以它自己的模型为准";
 "Share with other devices" = "共享给其他设备";
-"Other Macs on your network or Tailscale can use this Mac for speech recognition" = "局域网或 Tailscale 里的其他 Mac 可以用这台 Mac 识别语音";
-"On the other Mac, choose Remote and enter one of these addresses and the token." = "在另一台 Mac 上选「远程」，填其中一个地址和令牌。";
+"Other Macs on your network or Tailscale can use this one" = "局域网或 Tailscale 里的其他 Mac 可以用这台识别";
+"On the other Mac, choose Remote and enter an address and the token" = "在另一台 Mac 上选「远程」，填地址和令牌";
 
 /* Server on this Mac: status */
 "Downloading models…" = "正在下载模型…";
@@ -157,3 +157,4 @@
 
 "Check for Updates…" = "检查更新…";
 "Update automatically" = "自动更新";
+"Copy an address" = "拷贝地址";

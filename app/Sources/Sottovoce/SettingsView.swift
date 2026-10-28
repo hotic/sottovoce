@@ -54,9 +54,12 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
+            // Every page fits the window, so pages never scroll and switching tabs never resizes anything
+            .scrollDisabled(true)
+            .scrollIndicators(.never)
         }
-        // Keep the window and tab bar steady while pages with different content heights are swapped.
-        .frame(width: 460, height: 460, alignment: .top)
+        // One size for every page: the window and tab bar stay put while pages are swapped
+        .frame(width: 460, height: 470, alignment: .top)
         .task { await refresh() }
         .onReceive(poll) { _ in Task { await refresh() } }
     }
@@ -94,9 +97,9 @@ struct SettingsView: View {
 
         if !controller.lastText.isEmpty {
             Section("Last transcription") {
-                // Show only a few lines of long text so the window doesn't grow too tall
+                // Two lines at most, so the page still fits without scrolling
                 Text(controller.lastText)
-                    .lineLimit(4)
+                    .lineLimit(2)
                     .textSelection(.enabled)
             }
         }
@@ -108,14 +111,14 @@ struct SettingsView: View {
                 ForEach(TriggerKey.allCases) { Text($0.title).tag($0.rawValue) }
             } label: {
                 Text("Hold to talk")
-                Text("Hold to dictate, release to finish")
+                Text("Hold to dictate, release to finish").lineLimit(1)
             }
             Toggle(isOn: $tapToToggle) {
                 Text("Tap for hands-free")
-                Text("Tap once to start recording, tap again to finish, Esc to cancel")
+                Text("Tap to start, tap again to finish, Esc to cancel").lineLimit(1)
             }
         } footer: {
-            footnote(String(localized: "Pressing another key while holding is treated as a key combo and cancels the recording. Pick another key if your external keyboard has no fn key."))
+            footnote(String(localized: "Pressing another key while holding cancels, as it's likely a shortcut"))
         }
     }
 
@@ -126,26 +129,26 @@ struct SettingsView: View {
                 ForEach(devices) { Text($0.name).tag($0.uid) }
             } label: {
                 Text("Microphone")
-                Text("Default microphone for dictation")
+                Text("Default microphone for dictation").lineLimit(1)
             }
             .onChange(of: microphoneUID) { controller.applyMicSettings() }
             Toggle(isOn: $micAlwaysOn) {
                 Text("Keep microphone on")
-                Text("Records the instant you press without losing the start; the orange mic dot in the menu bar stays on, and Bluetooth headsets stay in call quality")
+                Text("Catches the first word; the mic indicator stays on").lineLimit(1)
             }
             .onChange(of: micAlwaysOn) { controller.applyMicSettings() }
         }
         Section {
             Toggle(isOn: $livePreview) {
                 Text("Live preview")
-                Text("Writes the fast model's result into the text field as you speak and replaces it with the final text on release; unsupported text fields get the text only on release")
+                Text("Shows words in the text field while you speak").lineLimit(1)
             }
             Picker("Punctuation", selection: $punctuation) {
                 ForEach(PunctuationMode.allCases) { Text($0.title).tag($0.rawValue) }
             }
             Toggle(isOn: $copyToClipboard) {
                 Text("Keep result on clipboard")
-                Text("Also copies the result to the clipboard, so you can still paste it if it wasn't inserted or you cancelled; when off, the previous clipboard contents are restored after pasting")
+                Text("In case pasting fails or you cancel").lineLimit(1)
             }
         }
     }
@@ -162,8 +165,8 @@ struct SettingsView: View {
             }
         } footer: {
             footnote(connection == ConnectionMode.remote.rawValue
-                     ? String(localized: "Connect to the Sottovoce server on another machine on your LAN or Tailscale. Use the server's LAN or Tailscale IP; with a fake-IP proxy (e.g. Clash) running, hostnames may resolve to fake addresses.")
-                     : String(localized: "Speech recognition runs on this Mac, inside Sottovoce. Models are downloaded once and kept in ~/.cache/huggingface."))
+                     ? String(localized: "Use the server's LAN or Tailscale IP address")
+                     : String(localized: "Runs inside Sottovoce; models are kept in ~/.cache/huggingface"))
         }
         .onChange(of: connection) { Task { await refresh() } }
 
@@ -173,26 +176,29 @@ struct SettingsView: View {
                     ForEach(SpeechModel.allCases) { Text($0.title).tag($0.rawValue) }
                 }
                 serverStatus
-            } footer: {
-                if server.state == .external {
-                    footnote(String(localized: "This server was started outside the app (for example from the command line or a LaunchAgent), so its own model and settings apply."))
-                }
             }
 
             Section {
                 Toggle(isOn: $shareServer) {
                     Text("Share with other devices")
-                    Text("Other Macs on your network or Tailscale can use this Mac for speech recognition")
+                    Text("Other Macs on your network or Tailscale can use this one").lineLimit(1)
                 }
                 .onChange(of: shareServer) { _, on in
                     if on { shareToken = Pref.serverToken }
                 }
                 if shareServer {
+                    // One row however many interfaces there are; picking an address copies it
                     LabeledContent("Address") {
-                        VStack(alignment: .trailing) {
-                            ForEach(addresses, id: \.self) { Text(verbatim: "http://\($0):\(LocalServer.port)") }
+                        Menu {
+                            ForEach(addresses, id: \.self) { address in
+                                Button { copy(shareURL(address)) } label: { Text(verbatim: shareURL(address)) }
+                            }
+                        } label: {
+                            Text(verbatim: addresses.first.map(shareURL) ?? "—")
                         }
-                        .textSelection(.enabled)
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .help("Copy an address")
                     }
                     LabeledContent("Token") {
                         HStack {
@@ -200,8 +206,7 @@ struct SettingsView: View {
                                 .font(.system(.body, design: .monospaced))
                                 .textSelection(.enabled)
                             Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(shareToken, forType: .string)
+                                copy(shareToken)
                             } label: {
                                 Image(systemName: "doc.on.doc")
                             }
@@ -212,7 +217,7 @@ struct SettingsView: View {
                 }
             } footer: {
                 if shareServer {
-                    footnote(String(localized: "On the other Mac, choose Remote and enter one of these addresses and the token."))
+                    footnote(String(localized: "On the other Mac, choose Remote and enter an address and the token"))
                 }
             }
         }
@@ -247,10 +252,18 @@ struct SettingsView: View {
         case .running:
             status(String(localized: "Running on this Mac"), ok: true, hint: Pref.localServerURL, action: nil)
         case .external:
-            status(String(localized: "Using the server already running on this Mac"), ok: true, hint: Pref.localServerURL, action: nil)
+            status(String(localized: "Using the server already running on this Mac"), ok: true,
+                   hint: String(localized: "Started outside the app; its own model applies"), action: nil)
         case .failed(let message):
             status(String(localized: "The server stopped"), ok: false, hint: message, button: "Restart") { server.retry() }
         }
+    }
+
+    private func shareURL(_ address: String) -> String { "http://\(address):\(LocalServer.port)" }
+
+    private func copy(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func bytes(_ n: Int64) -> String {
@@ -261,7 +274,7 @@ struct SettingsView: View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
-            .multilineTextAlignment(.leading)
+            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -308,7 +321,8 @@ struct SettingsView: View {
                 .foregroundStyle(ok ? .green : .orange)
             VStack(alignment: .leading) {
                 Text(title)
-                Text(hint).font(.caption).foregroundStyle(.secondary)
+                // Errors can be long: one line here, the whole text on hover
+                Text(hint).font(.caption).foregroundStyle(.secondary).lineLimit(1).help(hint)
             }
             Spacer()
             if !ok, let action {
