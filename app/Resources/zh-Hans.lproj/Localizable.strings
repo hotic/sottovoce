@@ -79,4 +79,38 @@
 "Token" = "令牌";
 "SOTTOVOCE_TOKEN of the server" = "服务端的 SOTTOVOCE_TOKEN";
 "Connect to the Sottovoce server on another machine on your LAN or Tailscale. Use the server's LAN or Tailscale IP; with a fake-IP proxy (e.g. Clash) running, hostnames may resolve to fake addresses." = "连接局域网或 Tailscale 里另一台机器上的 Sottovoce 服务端。建议填服务端的局域网或 Tailscale IP，开着 Clash 之类的 fake-ip 代理时机器名可能被解析到假地址。";
-"Use the Sottovoce server running on this Mac (127.0.0.1:8008)." = "使用本机常驻的 Sottovoce 服务端（127.0.0.1:8008）。";
+"Speech recognition runs on this Mac, inside Sottovoce. Models are downloaded once and kept in ~/.cache/huggingface." = "语音识别在本机的 Sottovoce 里运行。模型只需下载一次，存放在 ~/.cache/huggingface。";
+"Model" = "模型";
+"Qwen3-ASR 1.7B, most accurate (2.3 GB)" = "Qwen3-ASR 1.7B，最准（2.3 GB）";
+"Qwen3-ASR 0.6B, lighter (1.0 GB)" = "Qwen3-ASR 0.6B，更轻（1.0 GB）";
+"This server was started outside the app (for example from the command line or a LaunchAgent), so its own model and settings apply." = "这个服务端是在 app 之外启动的（比如命令行或 LaunchAgent），以它自己的模型和设置为准。";
+"Share with other devices" = "共享给其他设备";
+"Other Macs on your network or Tailscale can use this Mac for speech recognition" = "局域网或 Tailscale 里的其他 Mac 可以用这台 Mac 识别语音";
+"On the other Mac, choose Remote and enter one of these addresses and the token." = "在另一台 Mac 上选「远程」，填其中一个地址和令牌。";
+
+/* Server on this Mac: status */
+"Downloading models…" = "正在下载模型…";
+"Downloading models: %@ of %@" = "正在下载模型：%@ / %@";
+"%@ of %@" = "%@ / %@";
+"Preparing…" = "准备中…";
+"Download failed" = "下载失败";
+"Download failed: %@" = "下载失败：%@";
+"Retry" = "重试";
+"Starting the server…" = "正在启动服务…";
+"Running on this Mac" = "已在本机运行";
+"Using the server already running on this Mac" = "正在使用本机已运行的服务端";
+"The server stopped" = "服务已停止";
+"The server stopped: %@" = "服务已停止：%@";
+"Restart" = "重新启动";
+"The server keeps exiting" = "服务反复退出";
+"The server is missing from the app" = "app 里缺少服务端";
+"Can't reach Hugging Face: %@" = "连不上 Hugging Face：%@";
+"Not enough disk space: the models need %@" = "磁盘空间不足：模型需要 %@";
+"Downloaded file is damaged: %@" = "下载的文件已损坏：%@";
+"Download failed: HTTP %lld" = "下载失败：HTTP %lld";
+
+/* Server on this Mac: HUD and menu */
+"Downloading model %lld%%" = "模型下载中 %lld%%";
+"Model download failed" = "模型下载失败";
+"Server starting…" = "服务启动中…";
+"Server stopped" = "服务已停止";

@@ -1,2 +1,3 @@
 /* English Info.plist strings; UI strings use the English source text in code, so no Localizable.strings is needed */
 "NSMicrophoneUsageDescription" = "Recordings are sent to the Sottovoce speech recognition server to be transcribed into text.";
+"NSLocalNetworkUsageDescription" = "Connects to a Sottovoce server on another Mac on your network.";

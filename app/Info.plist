@@ -38,6 +38,8 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Connects to a Sottovoce server on another Mac on your network.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Recordings are sent to the Sottovoce speech recognition server to be transcribed into text.</string>
 </dict>

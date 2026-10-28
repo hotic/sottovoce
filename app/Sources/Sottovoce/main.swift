@@ -7,16 +7,19 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = Controller()
+    private let server = LocalServer()
     private var hud: HUD?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var trustTimer: Timer?
-    private var cancellable: AnyCancellable?
+    private var cancellables: Set<AnyCancellable> = []
     private var activity: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Pref.register()
         hud = HUD(controller: controller)
+        controller.notReady = { [server] in server.notReadyMessage }
+        server.start()
         setupEditMenu()
         setupStatusItem()
         controller.startMonitoring()
@@ -39,6 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        server.stop()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -68,6 +75,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
+        // While the server on this Mac downloads models or starts, a disabled first line says so
+        let serverLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        serverLine.isEnabled = false
+        let serverSeparator = NSMenuItem.separator()
+        menu.addItem(serverLine)
+        menu.addItem(serverSeparator)
+        server.$state.sink { state in
+            let message = LocalServer.message(for: state)
+            serverLine.title = message ?? ""
+            serverLine.isHidden = message == nil
+            serverSeparator.isHidden = message == nil
+        }
+        .store(in: &cancellables)
         menu.addItem(withTitle: String(localized: "Settings…"), action: #selector(showSettings), keyEquivalent: ",").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: String(localized: "Quit Sottovoce"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -76,12 +96,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // The menu-bar icon is the logo's wave; it turns into a filled badge while recording or transcribing
         let plain = Self.waveIcon(filled: false), filled = Self.waveIcon(filled: true)
-        cancellable = controller.$phase.sink { [weak item] phase in
+        controller.$phase.sink { [weak item] phase in
             switch phase {
             case .recording, .transcribing: item?.button?.image = filled
             default: item?.button?.image = plain
             }
         }
+        .store(in: &cancellables)
     }
 
     /// The logo's dying-away wave as an 18 pt template image, so the menu bar tints it for light and dark.
@@ -119,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let w = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
             w.title = "Sottovoce"
             w.isReleasedWhenClosed = false
-            w.contentView = NSHostingView(rootView: SettingsView(controller: controller))
+            w.contentView = NSHostingView(rootView: SettingsView(controller: controller, server: server))
             w.center()
             settingsWindow = w
         }

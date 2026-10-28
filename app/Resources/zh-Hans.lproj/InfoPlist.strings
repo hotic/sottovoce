@@ -1,2 +1,3 @@
 /* Simplified Chinese Info.plist strings */
 "NSMicrophoneUsageDescription" = "录音后交给 Sottovoce 语音识别服务转写成文字。";
+"NSLocalNetworkUsageDescription" = "连接局域网里另一台 Mac 上的 Sottovoce 服务端。";

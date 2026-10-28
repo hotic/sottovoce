@@ -29,6 +29,8 @@ final class Controller: ObservableObject {
     /// 0.3–1 s to produce sound; until then the HUD shows a "starting" state
     @Published private(set) var micReady = false
     @Published private(set) var lastText = ""
+    /// Why dictation can't start yet (the server on this Mac is downloading models or starting); nil when it can
+    var notReady: @MainActor () -> String? = { nil }
 
     static let barCount = 16  // 16 bars, 3pt wide with 3pt gaps, exactly fill the HUD content area
     /// Holding for less than this counts as an accidental press (or a tap)
@@ -114,6 +116,11 @@ final class Controller: ObservableObject {
     }
 
     private func beginRecording() {
+        // Say so on the press rather than after the user has finished speaking
+        if let reason = notReady() {
+            fail(reason)
+            return
+        }
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
             break

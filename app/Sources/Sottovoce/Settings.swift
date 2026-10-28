@@ -56,8 +56,8 @@ enum PunctuationMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// How to reach the transcription service: the server running on this Mac, or one on another machine over the
-/// LAN / Tailscale.
+/// How to reach the transcription service: the server built into the app (or one already running on this Mac), or one
+/// on another machine over the LAN / Tailscale.
 enum ConnectionMode: String, CaseIterable, Identifiable {
     case local, remote
 
@@ -83,6 +83,9 @@ enum Pref {
     static let connection = "connection"
     static let remoteURL = "remoteURL"
     static let remoteToken = "remoteToken"
+    static let model = "model"
+    static let shareServer = "shareServer"
+    static let shareToken = "shareToken"
 
     static let localServerURL = "http://127.0.0.1:8008"
 
@@ -98,6 +101,9 @@ enum Pref {
             connection: ConnectionMode.local.rawValue,
             remoteURL: "",
             remoteToken: "",
+            model: SpeechModel.accurate.rawValue,
+            shareServer: false,
+            shareToken: "",
         ])
     }
 
@@ -111,6 +117,18 @@ enum Pref {
 
     static var connectionMode: ConnectionMode {
         ConnectionMode(rawValue: UserDefaults.standard.string(forKey: connection) ?? "") ?? .local
+    }
+
+    static var speechModel: SpeechModel {
+        SpeechModel(rawValue: UserDefaults.standard.string(forKey: model) ?? "") ?? .accurate
+    }
+
+    /// Token other devices use to reach this Mac's server when sharing is on; created on first use
+    static var serverToken: String {
+        if let token = UserDefaults.standard.string(forKey: shareToken), !token.isEmpty { return token }
+        let token = (0..<16).map { _ in String(format: "%02x", UInt8.random(in: 0...255)) }.joined()
+        UserDefaults.standard.set(token, forKey: shareToken)
+        return token
     }
 
     /// Server address in use: fixed 127.0.0.1:8008 in local mode, the configured address in remote mode
