@@ -86,6 +86,10 @@ enum Pref {
     static let model = "model"
     static let shareServer = "shareServer"
     static let shareToken = "shareToken"
+    /// Set once the welcome window's last step is done
+    static let onboarded = "onboarded"
+    /// The user chose a model and started the first download; until then nothing is downloaded on its own
+    static let downloadApproved = "downloadApproved"
 
     static let localServerURL = "http://127.0.0.1:8008"
 
@@ -104,6 +108,8 @@ enum Pref {
             model: SpeechModel.accurate.rawValue,
             shareServer: false,
             shareToken: "",
+            onboarded: false,
+            downloadApproved: false,
         ])
     }
 

@@ -219,6 +219,12 @@ struct SettingsView: View {
         switch server.state {
         case .off:
             EmptyView()
+        case .needsDownload:
+            status(String(localized: "Speech model not downloaded"), ok: false,
+                   hint: String(localized: "Downloaded once, then kept on this Mac"),
+                   button: "Download \(SpeechModel.downloadSize(Pref.speechModel, preview: server.wantsPreview))") {
+                server.approveDownload()
+            }
         case .downloading(let done, let total):
             VStack(alignment: .leading, spacing: 6) {
                 Text("Downloading models…")
@@ -284,6 +290,7 @@ struct SettingsView: View {
         case .downloading(let done, let total) where total > 0:
             return String(localized: "Downloading models: \(bytes(done)) of \(bytes(total))")
         case .downloading: return String(localized: "Downloading models…")
+        case .needsDownload: return String(localized: "Speech model not downloaded")
         case .downloadFailed(let message): return String(localized: "Download failed: \(message)")
         case .failed(let message): return String(localized: "The server stopped: \(message)")
         default: return String(localized: "Starting the server…")

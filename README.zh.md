@@ -49,8 +49,8 @@ flowchart LR
 需要一台 macOS 14 及以上的 Apple Silicon Mac。
 
 1. 从 [Releases](https://github.com/hotic/sottovoce/releases/latest) 下载 `Sottovoce-<版本>.dmg`，打开后把 Sottovoce 拖进「应用程序」。app 经过了苹果的公证，打开时不会弹警告。
-2. 打开 Sottovoce，它待在菜单栏里。macOS 询问时，允许辅助功能和麦克风权限。
-3. 等语音模型下载完，菜单栏菜单和设置里都能看到进度。
+2. 打开 Sottovoce，它待在菜单栏里。按欢迎窗口的提示，允许辅助功能和麦克风权限。
+3. 选一个模型大小，点「下载」。下载可以放到后台：菜单栏图标会显示进度，模型就绪后欢迎窗口会回来。
 4. 按住右 ⌥ 说话，松手。
 
 安装包本身约 30 MB，模型不在里面。首次启动时，app 会从 Hugging Face 下载需要的模型，只下一次：
@@ -58,7 +58,7 @@ flowchart LR
 | 模型 | 下载大小 | 用途 |
 |---|---|---|
 | `mlx-community/Qwen3-ASR-1.7B-8bit` | 2.3 GB | 缺省，最准 |
-| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | 更轻，准确度略低；在「设置 › 服务」里选 |
+| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | 更轻，准确度略低；在欢迎窗口或「设置 › 服务」里选 |
 | `mlx-community/SenseVoiceSmall` | 0.9 GB | 实时预览要用；关掉实时预览就不下 |
 
 模型存放在 `~/.cache/huggingface/hub`，和 `huggingface-cli` 用的是同一个位置，已经下过的模型不会重复下载。下载中断后会接着下。连不上 huggingface.co 时，app 会改用 hf-mirror.com 镜像。

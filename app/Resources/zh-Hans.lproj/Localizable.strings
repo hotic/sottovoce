@@ -114,3 +114,31 @@
 "Model download failed" = "模型下载失败";
 "Server starting…" = "服务启动中…";
 "Server stopped" = "服务已停止";
+
+/* Welcome window */
+"Welcome to Sottovoce" = "欢迎使用 Sottovoce";
+"Hold a key, speak, let go. Your words land where the cursor is." = "按住一个键说话，松手，文字就落在光标所在的位置。";
+"Allow Accessibility" = "允许辅助功能";
+"To notice the hotkey and type the text for you" = "用来监听快捷键，并替你把文字填进输入框";
+"Open System Settings" = "打开系统设置";
+"Allow the microphone" = "允许使用麦克风";
+"Only records while you hold the hotkey" = "只在按住快捷键时录音";
+"Allow" = "允许";
+"Download the speech model" = "下载语音模型";
+"%@ of %@, %@/s, about %@ left" = "%@ / %@，%@/s，还剩约 %@";
+"Ready" = "已就绪";
+"Connect to the server" = "连接服务端";
+"Using %@" = "正在使用 %@";
+"Set the address in Settings › Server" = "在「设置 › 服务」里填写地址";
+"Try it" = "试一下";
+"Click the box, hold %@, say something, let go" = "点进下面的框，按住%@ 说句话，然后松手";
+"Hold %@ and speak…" = "按住%@ 说话…";
+"That's it. It works the same in any app." = "就是这样，在任何 app 里都一样用。";
+"Get Started" = "开始使用";
+"1.7B is the most accurate (2.3 GB), 0.6B is lighter (1.0 GB)" = "1.7B 最准（2.3 GB），0.6B 更轻（1.0 GB）";
+"Live preview with SenseVoice Small, shows words as you speak (+0.9 GB)" = "实时预览：用 SenseVoice Small 边说边出字（再加 0.9 GB）";
+"Download %@" = "下载 %@";
+"Download in Background" = "后台下载";
+"Model not downloaded" = "模型尚未下载";
+"Speech model not downloaded" = "语音模型尚未下载";
+"Downloaded once, then kept on this Mac" = "只需下载一次，之后一直留在这台 Mac 上";

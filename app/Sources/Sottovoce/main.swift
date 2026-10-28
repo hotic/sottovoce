@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let controller = Controller()
     private let server = LocalServer()
     private var hud: HUD?
+    private var welcome: WelcomeWindow?
     private var statusItem: NSStatusItem?
     private var settingsWindow: NSWindow?
     private var trustTimer: Timer?
@@ -29,11 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep],
                                                          reason: "Listening for the dictation hotkey")
 
-        // Without Accessibility permission, show the system prompt and poll until granted,
-        // then re-register the monitors
-        let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-        if !AXIsProcessTrustedWithOptions(opts) {
-            showSettings()
+        // Without Accessibility permission, poll until granted, then re-register the monitors. The welcome window
+        // asks for it, so there is no system prompt at launch
+        let trusted = AXIsProcessTrusted()
+        if !trusted {
             trustTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
                 Task { @MainActor in
                     guard AXIsProcessTrusted() else { return }
@@ -42,6 +42,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+
+        let welcome = WelcomeWindow(controller: controller, server: server) { [weak self] in
+            self?.statusItem?.button?.window?.frame
+        }
+        self.welcome = welcome
+        if !UserDefaults.standard.bool(forKey: Pref.onboarded) || !trusted {
+            welcome.show()
+        } else {
+            // Set up before, but the models are gone (a cleared cache, a new Mac with old settings): bring the
+            // window up for the first check after launch that finds them missing
+            var checked = false
+            server.$state.sink { state in
+                guard !checked, state != .off else { return }
+                checked = true
+                switch state {
+                case .needsDownload, .downloading: welcome.show()
+                default: break
+                }
+            }
+            .store(in: &cancellables)
+        }
+        // A download sent to the background during setup: once it's done, the window comes back for the last
+        // step, without taking focus
+        var previous = LocalServer.State.off
+        server.$state.sink { state in
+            defer { previous = state }
+            guard case .downloading = previous, !UserDefaults.standard.bool(forKey: Pref.onboarded), welcome.isTucked else {
+                return
+            }
+            switch state {
+            case .starting, .running: welcome.show(activate: false)
+            default: break
+            }
+        }
+        .store(in: &cancellables)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -94,23 +129,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.menu = menu
         statusItem = item
 
-        // The menu-bar icon is the logo's wave; it turns into a filled badge while recording or transcribing
+        // The menu-bar icon is the logo's wave; it turns into a filled badge while recording or transcribing, and
+        // carries a progress bar while models download
         let plain = Self.waveIcon(filled: false), filled = Self.waveIcon(filled: true)
-        controller.$phase.sink { [weak item] phase in
-            switch phase {
-            case .recording, .transcribing: item?.button?.image = filled
-            default: item?.button?.image = plain
+        controller.$phase.combineLatest(server.$state).sink { [weak item] phase, state in
+            switch (phase, state) {
+            case (.recording, _), (.transcribing, _):
+                item?.button?.image = filled
+            case (_, .downloading(let done, let total)) where total > 0:
+                item?.button?.image = Self.waveIcon(filled: false, progress: Double(done) / Double(total))
+            default:
+                item?.button?.image = plain
             }
         }
         .store(in: &cancellables)
     }
 
     /// The logo's dying-away wave as an 18 pt template image, so the menu bar tints it for light and dark.
-    /// Filled draws a rounded badge with the wave cut out of it
-    private static func waveIcon(filled: Bool) -> NSImage {
+    /// Filled draws a rounded badge with the wave cut out of it; progress (0...1) lifts the wave and draws a bar under it
+    private static func waveIcon(filled: Bool, progress: Double? = nil) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
             let wave = NSBezierPath()
-            let (x0, width, mid, amp) = (1.5, 12.6, 9.0, 5.6)
+            let (x0, width) = (1.5, 12.6)
+            let (mid, amp) = progress == nil ? (9.0, 5.6) : (11.0, 4.2)
             for i in 0...80 {
                 let t = Double(i) / 80
                 let p = NSPoint(x: x0 + width * t, y: mid + amp * sin(t * .pi * 4.5) * pow(1 - t, 1.3))
@@ -128,6 +169,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             wave.stroke()
             dot.fill()
+            if let progress {
+                let track = NSRect(x: 1.5, y: 1.5, width: 15, height: 2.2)
+                NSColor.black.withAlphaComponent(0.3).set()
+                NSBezierPath(roundedRect: track, xRadius: 1.1, yRadius: 1.1).fill()
+                NSColor.black.set()
+                var bar = track
+                bar.size.width = max(2.2, track.width * min(max(progress, 0), 1))
+                NSBezierPath(roundedRect: bar, xRadius: 1.1, yRadius: 1.1).fill()
+            }
             return true
         }
         image.isTemplate = true

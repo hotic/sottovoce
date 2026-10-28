@@ -11,6 +11,8 @@ final class LocalServer: ObservableObject {
     enum State: Equatable {
         /// Remote connection: nothing runs on this Mac
         case off
+        /// Models are missing and the user hasn't chosen a size and started the download yet
+        case needsDownload
         case downloading(done: Int64, total: Int64)
         case downloadFailed(String)
         case starting
@@ -43,6 +45,8 @@ final class LocalServer: ObservableObject {
     private var stopping = false
     private var crashes: [Date] = []
     private var download: Task<Void, Never>?
+    /// Bumped per download, so a cancelled one finishing late can't clear the handle of the one that replaced it
+    private var downloadID = 0
     private var downloadError: String?
     private var timer: Timer?
     private var observer: NSObjectProtocol?
@@ -77,6 +81,12 @@ final class LocalServer: ObservableObject {
         Task { await sync() }
     }
 
+    /// The welcome window's or Settings' Download button: allows this and later downloads
+    func approveDownload() {
+        UserDefaults.standard.set(true, forKey: Pref.downloadApproved)
+        Task { await sync() }
+    }
+
     /// Short reason for the HUD when dictation can't reach a server on this Mac yet; nil when it can
     var notReadyMessage: String? {
         serving ? nil : Self.message(for: state)
@@ -86,6 +96,7 @@ final class LocalServer: ObservableObject {
     static func message(for state: State) -> String? {
         switch state {
         case .off, .running, .external: return nil
+        case .needsDownload: return String(localized: "Model not downloaded")
         case .downloading(let done, let total):
             return String(localized: "Downloading model \(Int(Double(done) / Double(max(total, 1)) * 100))%")
         case .downloadFailed: return String(localized: "Model download failed")
@@ -93,6 +104,9 @@ final class LocalServer: ObservableObject {
         case .failed: return String(localized: "Server stopped")
         }
     }
+
+    /// Whether the preview model is downloaded and loaded with the current settings
+    var wantsPreview: Bool { !wanted.preview.isEmpty }
 
     private var wanted: Config {
         let d = UserDefaults.standard
@@ -125,6 +139,10 @@ final class LocalServer: ObservableObject {
             lastWanted = want
             downloadError = nil
             crashes.removeAll()
+            // e.g. switching to the lighter model mid-download: stop fetching what is no longer wanted; partial
+            // files stay and resume if it is wanted again
+            download?.cancel()
+            download = nil
         }
 
         if let process, process.isRunning {
@@ -166,6 +184,9 @@ final class LocalServer: ObservableObject {
         guard download == nil else { return }
         if let downloadError {
             state = .downloadFailed(downloadError)
+        } else if !UserDefaults.standard.bool(forKey: Pref.downloadApproved) {
+            // Gigabytes: wait for the user to pick a size and press Download
+            state = .needsDownload
         } else {
             startDownload(missing(config))
         }
@@ -173,20 +194,22 @@ final class LocalServer: ObservableObject {
 
     private func startDownload(_ repos: [String]) {
         state = .downloading(done: 0, total: 0)
+        downloadID += 1
+        let id = downloadID
         download = Task { [weak self] in
             do {
                 try await ModelDownloader.download(repos) { done, total in
                     Task { @MainActor in
-                        guard let self, case .downloading = self.state else { return }
+                        guard let self, self.downloadID == id, case .downloading = self.state else { return }
                         self.state = .downloading(done: done, total: total)
                     }
                 }
             } catch {
-                guard let self, !Task.isCancelled else { return }
+                guard let self, self.downloadID == id, !Task.isCancelled else { return }
                 self.downloadError = error.localizedDescription
                 self.state = .downloadFailed(error.localizedDescription)
             }
-            guard let self else { return }
+            guard let self, self.downloadID == id else { return }
             self.download = nil
             if case .downloading = self.state { self.state = .starting }
             await self.sync()

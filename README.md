@@ -49,8 +49,8 @@ The server needs Apple Silicon. It runs inside the app, or on its own as a comma
 You need an Apple Silicon Mac with macOS 14 or later.
 
 1. Download `Sottovoce-<version>.dmg` from [Releases](https://github.com/hotic/sottovoce/releases/latest), open it, and drag Sottovoce into Applications. Apple has checked the app (it is notarized), so it opens without warnings.
-2. Open Sottovoce. It lives in the menu bar. Allow Accessibility and Microphone when macOS asks.
-3. Wait for the speech model to download. The menu bar menu and Settings show the progress.
+2. Open Sottovoce. It lives in the menu bar, and its welcome window asks for Accessibility and Microphone access.
+3. Pick a model size and press Download. The download can run in the background: the menu bar icon shows its progress, and the welcome window comes back when the model is ready.
 4. Hold right ⌥, talk, and let go.
 
 The download itself is about 30 MB, because the models are not inside it. On first launch the app fetches what it needs from Hugging Face, once:
@@ -58,7 +58,7 @@ The download itself is about 30 MB, because the models are not inside it. On fir
 | Model | Download size | Role |
 |---|---|---|
 | `mlx-community/Qwen3-ASR-1.7B-8bit` | 2.3 GB | Default, most accurate |
-| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | Lighter, a little less accurate; choose it in Settings › Server |
+| `mlx-community/Qwen3-ASR-0.6B-8bit` | 1.0 GB | Lighter, a little less accurate; choose it in the welcome window or Settings › Server |
 | `mlx-community/SenseVoiceSmall` | 0.9 GB | Powers live preview; skipped while live preview is off |
 
 Models are kept in `~/.cache/huggingface/hub`, where `huggingface-cli` keeps them too, so a model you already have is not downloaded again. An interrupted download picks up where it stopped. When huggingface.co can't be reached, the app tries the hf-mirror.com mirror.

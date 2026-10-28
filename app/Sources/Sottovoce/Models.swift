@@ -17,8 +17,22 @@ enum SpeechModel: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Fast model behind live preview (0.9 GB)
+    /// Download size in GB, rounded the way the README and the menus show it
+    var gigabytes: Double {
+        switch self {
+        case .accurate: return 2.3
+        case .light: return 1.0
+        }
+    }
+
+    /// Fast model behind live preview
     static let preview = "mlx-community/SenseVoiceSmall"
+    static let previewGigabytes = 0.9
+
+    /// "3.2 GB" for a model, plus the preview model when live preview is on
+    static func downloadSize(_ model: SpeechModel, preview: Bool) -> String {
+        String(format: "%.1f GB", model.gigabytes + (preview ? previewGigabytes : 0))
+    }
 }
 
 /// The Hugging Face cache layout the server reads (src/nn.rs): <cache>/models--org--name/refs/main holds a commit,
