@@ -24,7 +24,7 @@ Sottovoce turns an Apple Silicon Mac into a speech-to-text server. It loads the 
 The name is the musical direction *sotto voce*: "in a low voice".
 
 - **High accuracy.** It runs [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B), an open speech recognition model that made far fewer mistakes than Whisper in our tests. It understands Chinese, English, and many other languages.
-- **Easy to install.** One app: open it and it downloads the speech model and runs the server by itself. No Python, no Terminal.
+- **Easy to install.** One app: open it, pick a model size, and it downloads the model and runs the server by itself. No Python, no Terminal.
 - **Works with existing tools.** Apps that can use OpenAI's speech-to-text API can use Sottovoce instead by changing one address.
 - **Learns your words.** Add names and terms it keeps getting wrong, and choose exactly how they should be spelled.
 - **A dictation app.** Hold a key, speak, release. The text lands in whatever field has focus.
