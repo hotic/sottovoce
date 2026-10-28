@@ -8,6 +8,11 @@ use anyhow::{anyhow, bail, Result};
 
 pub const SAMPLE_RATE: usize = 16000;
 
+/// Demuxers ffmpeg may pick for an upload: audio containers plus MP4 / Matroska / WebM for video files. Playlist and
+/// script formats (HLS, concat) open the files and URLs named inside them, so an upload could make the server read
+/// audio from its own disk or fetch URLs on the caller's behalf
+const DEMUXERS: &str = "wav,w64,mp3,aac,flac,ogg,mov,matroska,caf,aiff,amr,amrnb,amrwb,au,asf,wv";
+
 /// Decoding failed (corrupt or empty audio); the API maps this to 400
 #[derive(Debug)]
 pub struct DecodeError(pub String);
@@ -34,7 +39,8 @@ pub fn decode(data: &[u8], suffix: &str, ffmpeg: &PathBuf) -> Result<Vec<f32>, D
         f.write_all(data)?;
         f.flush()?;
         let out = Command::new(ffmpeg)
-            .args(["-nostdin", "-loglevel", "error", "-i"])
+            // Only the uploaded temp file itself may be opened, and only as one of the formats above
+            .args(["-nostdin", "-loglevel", "error", "-protocol_whitelist", "file", "-format_whitelist", DEMUXERS, "-i"])
             .arg(f.path())
             .args(["-f", "f32le", "-ac", "1", "-ar", &SAMPLE_RATE.to_string(), "pipe:1"])
             .output()

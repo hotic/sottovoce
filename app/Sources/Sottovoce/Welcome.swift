@@ -40,6 +40,9 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
             w.standardWindowButton(.zoomButton)?.isHidden = true
+            // With the system's open animation running alongside the content's fade-in, controls showed up before
+            // the window's background; show() fades the whole window in instead
+            w.animationBehavior = .none
             w.delegate = self
             // The desktop shows through behind the content, like the system's own setup windows
             let glass = NSVisualEffectView()
@@ -61,11 +64,23 @@ final class WelcomeWindow: NSObject, NSWindowDelegate {
             w.center()
             window = w
         }
+        guard let w = window else { return }
+        // Coming up from nothing (first show, or back from the menu bar): background and content fade in as one,
+        // and WelcomeView's own reveal starts after this. A minimized window keeps the system's restore animation
+        let fadeIn = !w.isVisible && !w.isMiniaturized
+        if fadeIn { w.alphaValue = 0 }
         if activate {
             NSApp.activate(ignoringOtherApps: true)
-            window?.makeKeyAndOrderFront(nil)
+            w.makeKeyAndOrderFront(nil)
         } else {
-            window?.orderFrontRegardless()
+            w.orderFrontRegardless()
+        }
+        if fadeIn {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.25
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                w.animator().alphaValue = 1
+            }
         }
     }
 
@@ -143,6 +158,7 @@ private struct WelcomeView: View {
             .padding(.bottom, 22)
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 8)
+            .animation(reveal(after: 0), value: appeared)
 
             VStack(spacing: 10) {
                 StepCard(number: 1, status: accessibility ? .done : .active,
@@ -163,6 +179,7 @@ private struct WelcomeView: View {
             .padding(.horizontal, 22)
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 14)
+            .animation(reveal(after: 0.08), value: appeared)
 
             Spacer(minLength: 16)
 
@@ -182,11 +199,13 @@ private struct WelcomeView: View {
             }
             .padding(.horizontal, 26)
             .padding(.bottom, 22)
+            .opacity(appeared ? 1 : 0)
+            .animation(reveal(after: 0.16), value: appeared)
         }
         .frame(width: 460, height: 640)
         .onAppear {
             lastTextAtOpen = controller.lastText
-            withAnimation(.easeOut(duration: 0.6).delay(0.15)) { appeared = true }
+            appeared = true
         }
         .onReceive(poll) { _ in Task { await refresh() } }
         .onChange(of: server.state) { _, state in
@@ -196,6 +215,12 @@ private struct WelcomeView: View {
             if ready { tryFocused = true }
         }
         .onChange(of: tried) { _, tried in progress.done = tried }
+    }
+
+    /// The content's entrance, staggered top to bottom; it waits for WelcomeWindow's 0.25 s window fade-in so
+    /// nothing shows before the window's background does
+    private func reveal(after delay: Double) -> Animation {
+        .easeOut(duration: 0.5).delay(0.25 + delay)
     }
 
     private var microphoneOK: Bool { microphone == .authorized }

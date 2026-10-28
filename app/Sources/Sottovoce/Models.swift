@@ -134,12 +134,29 @@ enum ModelDownloader {
                 let (data, response) = try await URLSession.shared.data(for: URLRequest(url: url, timeoutInterval: 15))
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
                 guard code == 200 else { throw Failure(message: "HTTP \(code)") }
-                return (endpoint, try JSONDecoder().decode(RepoInfo.self, from: data))
+                let info = try JSONDecoder().decode(RepoInfo.self, from: data)
+                try validate(info)
+                return (endpoint, info)
             } catch {
                 lastError = error
             }
         }
         throw Failure(message: String(localized: "Can't reach Hugging Face: \(lastError?.localizedDescription ?? "")"))
+    }
+
+    /// The commit and the file names become paths on disk, so a manifest from a broken or hostile mirror must not
+    /// point outside the snapshot directory: the commit is a plain hash, and names are relative paths without
+    /// "." / ".." components
+    private static func validate(_ info: RepoInfo) throws {
+        guard info.sha.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil else {
+            throw Failure(message: String(localized: "Invalid commit: \(info.sha)"))
+        }
+        for file in info.siblings {
+            let parts = file.rfilename.split(separator: "/", omittingEmptySubsequences: false)
+            guard !parts.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }) else {
+                throw Failure(message: String(localized: "Invalid file name: \(file.rfilename)"))
+            }
+        }
     }
 
     private static func snapshot(_ repo: String, _ commit: String) -> URL {
@@ -187,7 +204,7 @@ enum ModelDownloader {
             counter.add(-have)
         }
         guard let url = URL(string: "\(endpoint)/\(repo)/resolve/\(commit)/\(file.rfilename)") else {
-            throw Failure(message: "invalid file name: \(file.rfilename)")
+            throw Failure(message: String(localized: "Invalid file name: \(file.rfilename)"))
         }
 
         var attempt = 0

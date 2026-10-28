@@ -146,7 +146,11 @@ final class LocalServer: ObservableObject {
         }
 
         if let process, process.isRunning {
-            if processConfig != want && missing(want).isEmpty {
+            // A model change waits for its download while the old process keeps serving, but turning sharing off or
+            // replacing the token takes effect at once: otherwise the old process would stay reachable from the
+            // network with the old token until the download finished, or forever if it failed
+            let revoked = processConfig.map { $0.share && (!want.share || $0.token != want.token) } ?? false
+            if processConfig != want && (missing(want).isEmpty || revoked) {
                 terminate()   // The termination handler clears the process; the next sync starts the new one
                 return
             }

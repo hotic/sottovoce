@@ -113,11 +113,18 @@ jobs:
             app/build/Sottovoce.sha256
           if-no-files-found: error
           retention-days: 30
-      # A retry keeps assets already attached instead of replacing a published DMG; a changed app needs a new version
+      # A retry keeps a DMG already attached instead of replacing a published one; a changed app needs a new version.
+      # The rebuilt DMG differs (signing and notarization timestamps), so the checksum is always taken from the DMG
+      # the Release ends up with, and replaces one an earlier attempt may have attached
       - name: Attach the DMG to the Release
         if: env.PUBLISH == 'true'
         run: |
-          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > assets.txt
-          for file in app/build/Sottovoce-*.dmg app/build/Sottovoce.sha256; do
-            grep -Fxq "$(basename "$file")" assets.txt || gh release upload "$RELEASE_TAG" "$file"
-          done
+          dmg=$(basename app/build/Sottovoce-*.dmg)
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$dmg"; then
+            gh release download "$RELEASE_TAG" --pattern "$dmg" --dir "$RUNNER_TEMP/published"
+            (cd "$RUNNER_TEMP/published" && shasum -a 256 "$dmg") > app/build/Sottovoce.sha256
+            echo "Kept the DMG already attached; its checksum: $(cat app/build/Sottovoce.sha256)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh release upload "$RELEASE_TAG" "app/build/$dmg"
+          fi
+          gh release upload "$RELEASE_TAG" app/build/Sottovoce.sha256 --clobber

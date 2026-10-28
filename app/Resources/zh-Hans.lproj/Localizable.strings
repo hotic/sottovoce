@@ -106,6 +106,7 @@
 "The server is missing from the app" = "app 里缺少服务端";
 "Can't reach Hugging Face: %@" = "连不上 Hugging Face：%@";
 "Not enough disk space: the models need %@" = "磁盘空间不足：模型需要 %@";
+"Invalid commit: %@" = "提交哈希无效：%@";
 "Invalid file name: %@" = "文件名无效：%@";
 "Downloaded file is damaged: %@" = "下载的文件已损坏：%@";
 "Download failed: HTTP %lld" = "下载失败：HTTP %lld";

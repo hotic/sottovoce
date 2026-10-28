@@ -46,9 +46,14 @@ final class InlineComposer {
             discard()
             guard let focused, classify(focused) == .editable else { return }
             element = focused
-            broken = false
             text = ""
-            start = selectedRange(focused)?.location ?? 0
+            // Preview only at a plain caret whose surroundings can be read back. Writing over a selection would
+            // replace it, and a cancel or an empty result couldn't bring it back; without a readable caret there is
+            // no known place to write. Either way the final text is pasted instead, which replaces a selection as usual
+            guard let caret = selectedRange(focused), caret.length == 0,
+                  string(focused, at: caret.location, length: 0) != nil else { broken = true; return }
+            broken = false
+            start = caret.location
         }
         guard let el = element, !broken, preview != text else { return }
         if !text.isEmpty {
@@ -56,8 +61,21 @@ final class InlineComposer {
             guard string(el, at: start, length: text.utf16.count) == text else { broken = true; return }
             setSelectedRange(el, CFRange(location: start, length: text.utf16.count))
         }
-        guard write(el, preview) else { broken = true; return }
-        text = preview
+        switch write(el, preview) {
+        case .written:
+            text = preview
+        case .refused:
+            broken = true
+        case .altered:
+            // The control changed the text on the way in, so it can't be tracked. Take back what was just written,
+            // from the write position up to the caret the control left after it, so the final paste doesn't land
+            // next to a stray preview
+            if let caret = selectedRange(el), caret.length == 0, caret.location > start {
+                setSelectedRange(el, CFRange(location: start, length: caret.location - start))
+                AXUIElementSetAttributeValue(el, kAXSelectedTextAttribute as CFString, "" as CFTypeRef)
+            }
+            broken = true
+        }
     }
 
     /// Finalize: replace the preview with the final text. Returns false when there is no inline preview to replace,
@@ -69,10 +87,15 @@ final class InlineComposer {
         defer { reset() }
         guard string(el, at: start, length: text.utf16.count) == text else { return false }
         setSelectedRange(el, CFRange(location: start, length: text.utf16.count))
-        if write(el, final) { return true }
-        // The AX write failed but the preview is selected, so pasting replaces it
-        TextInserter.insert(final)
-        return true
+        switch write(el, final) {
+        case .written, .altered:
+            // Altered: the control took the text and adjusted it; pasting as well would insert it twice
+            return true
+        case .refused:
+            // The control refused the write, so the preview is still selected and pasting replaces it
+            TextInserter.insert(final)
+            return true
+        }
     }
 
     /// Cancel: remove the preview that was written
@@ -96,12 +119,23 @@ final class InlineComposer {
         broken = false
     }
 
-    /// Write and verify by reading back; on success move the cursor to the end
-    private func write(_ el: AXUIElement, _ s: String) -> Bool {
-        guard AXUIElementSetAttributeValue(el, kAXSelectedTextAttribute as CFString, s as CFTypeRef) == .success,
-              string(el, at: start, length: s.utf16.count) == s else { return false }
+    private enum WriteResult {
+        /// Written and read back unchanged; the caret was moved to its end
+        case written
+        /// The control rejected the write; nothing changed
+        case refused
+        /// The control accepted the write but holds something else there (autocorrect, trimming, a length limit)
+        case altered
+    }
+
+    /// Write at the selection and verify by reading back; on success move the cursor to the end
+    private func write(_ el: AXUIElement, _ s: String) -> WriteResult {
+        guard AXUIElementSetAttributeValue(el, kAXSelectedTextAttribute as CFString, s as CFTypeRef) == .success else {
+            return .refused
+        }
+        guard string(el, at: start, length: s.utf16.count) == s else { return .altered }
         setSelectedRange(el, CFRange(location: start + s.utf16.count, length: 0))
-        return true
+        return .written
     }
 
     /// Focused element of the frontmost app. On macOS 27 asking the system-wide element for focus returns
