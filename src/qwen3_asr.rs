@@ -26,6 +26,11 @@ const SAMPLE_RATE: usize = 16000;
 /// Audio longer than 20 minutes is split at low-energy points (matches mlx-audio's default chunk_duration)
 const CHUNK_SECONDS: usize = 1200;
 const MAX_TOKENS: usize = 8192;
+/// Per-chunk token budget: a fixed allowance (language prefix, short clips) plus tokens per second of audio. Real
+/// speech stays well under 10 tokens/s; a decoder stuck repeating itself would otherwise run to MAX_TOKENS, which
+/// takes minutes and holds the inference queue
+const BUDGET_BASE_TOKENS: usize = 64;
+const BUDGET_TOKENS_PER_SECOND: usize = 20;
 const PREFILL_STEP: usize = 2048;
 
 #[derive(Deserialize)]
@@ -142,7 +147,8 @@ impl Qwen3Asr {
         let n_audio = audio.dim(0) as usize;
 
         let ids = self.build_prompt(n_audio, language, system_prompt)?;
-        let tokens = self.generate(&ids, &audio)?;
+        let budget = (BUDGET_BASE_TOKENS + BUDGET_TOKENS_PER_SECOND * pcm.len() / SAMPLE_RATE).min(MAX_TOKENS);
+        let tokens = self.generate(&ids, &audio, budget)?;
         let text = self
             .tokenizer
             .decode(&tokens, true)
@@ -185,7 +191,8 @@ impl Qwen3Asr {
     }
 
     /// Greedy decoding: prefill the KV cache in chunks with every prompt token except the last, then generate token by token
-    fn generate(&self, ids: &[u32], audio: &Array) -> Result<Vec<u32>> {
+    /// Generation stops at `max_tokens` with a warning, keeping what was decoded so far
+    fn generate(&self, ids: &[u32], audio: &Array, max_tokens: usize) -> Result<Vec<u32>> {
         let total = ids.len();
         let ids_arr = Array::from_slice(&ids.iter().map(|&i| i as i32).collect::<Vec<_>>(), &[1, total as i32]);
         let embeds = self.decoder.embed.forward(&ids_arr)?;
@@ -220,9 +227,13 @@ impl Qwen3Asr {
 
         let mut token = self.step(&embeds, &mut cache)?;
         let mut out = Vec::new();
-        for _ in 0..MAX_TOKENS {
+        loop {
             let t = token.try_item_exact::<u32>()?;
             if self.eos.contains(&t) {
+                break;
+            }
+            if out.len() >= max_tokens {
+                log::warn!("decoding stopped at the {max_tokens}-token budget for this audio; the model was probably repeating itself");
                 break;
             }
             out.push(t);

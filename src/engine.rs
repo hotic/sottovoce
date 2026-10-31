@@ -18,6 +18,9 @@ use crate::nn::resolve_model_dir;
 use crate::qwen3_asr::Qwen3Asr;
 use crate::sensevoice::SenseVoice;
 
+/// Upper bound on MLX's buffer cache (freed GPU buffers kept for reuse)
+const CACHE_LIMIT: usize = 1 << 30;
+
 /// The OpenAI API passes ISO codes; Qwen3-ASR expects English language names
 const LANGUAGES: &[(&str, &str)] = &[
     ("zh", "Chinese"),
@@ -70,6 +73,10 @@ impl Engine {
         let (ready_tx, ready_rx) = mpsc::channel::<Result<bool>>();
         let (model, preview) = (model_id.to_string(), preview_id.map(str::to_string));
         std::thread::Builder::new().name("asr".into()).spawn(move || {
+            // The KV cache grows by concatenation, so every decoding step frees buffers one token too small to be
+            // reused. Unbounded, MLX keeps them all: a 2000-token generation cached 50 GB. The cap only limits what
+            // is kept for reuse, never what a request can allocate
+            let _ = mlx_rs::memory::set_cache_limit(CACHE_LIMIT);
             let worker = match Worker::load(&model, preview.as_deref(), default_language) {
                 Ok(w) => w,
                 Err(e) => {
