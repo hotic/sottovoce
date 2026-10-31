@@ -1,6 +1,6 @@
 [package]
 name = "sottovoce"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Always-on local speech recognition server (Qwen3-ASR on MLX) with an OpenAI-compatible API"
 publish = false
