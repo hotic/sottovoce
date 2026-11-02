@@ -67,16 +67,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // A download sent to the background during setup: the window comes back, without taking focus, as soon as
         // the download is over, for the last step or to show why it failed (a failure only changes the menu's
-        // status line, which nobody would notice). Only on leaving .downloading: the state is reassigned every
-        // two seconds, and a window the user closed must not keep coming back
+        // status line, which nobody would notice). Only on leaving .downloading for an outcome: the state is
+        // reassigned every two seconds, and a window the user closed must not keep coming back. Switching to a
+        // remote server sets .off while the download keeps going, which is not an outcome
         var previous = LocalServer.State.off
         server.$state.sink { state in
             defer { previous = state }
             guard case .downloading = previous, !UserDefaults.standard.bool(forKey: Pref.onboarded), welcome.isTucked else {
                 return
             }
-            if case .downloading = state { return }
-            welcome.show(activate: false)
+            switch state {
+            case .starting, .downloadFailed: welcome.show(activate: false)
+            default: break
+            }
         }
         .store(in: &cancellables)
     }
