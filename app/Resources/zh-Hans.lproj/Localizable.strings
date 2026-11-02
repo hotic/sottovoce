@@ -88,6 +88,10 @@
 "Started outside the app; its own model applies" = "在 app 之外启动，以它自己的模型为准";
 "Share with other devices" = "共享给其他设备";
 "Other Macs on your network or Tailscale can use this one" = "局域网或 Tailscale 里的其他 Mac 可以用这台识别";
+"Checking the token…" = "正在核对令牌…";
+"Started outside the app; this is its token" = "在 app 之外启动，这是它自己的令牌";
+"The server on this port refuses this token" = "端口上的服务拒绝这个令牌";
+"Can't check the token from this Mac's addresses" = "从本机地址核对不了令牌";
 
 /* Server on this Mac: status */
 "Downloading models…" = "正在下载模型…";

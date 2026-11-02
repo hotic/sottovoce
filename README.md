@@ -119,7 +119,7 @@ Requests are processed one at a time in arrival order.
 
 ## Serve other machines
 
-In the app, turn on Settings › Server › Share with other devices. It lists this Mac's addresses and a token. On the other Mac, choose Remote and enter one of the addresses and the token.
+In the app, turn on Settings › Server › Share with other devices. It lists this Mac's addresses and a token, shown only after the server on the port accepts it. On the other Mac, choose Remote and enter one of the addresses and the token. A server already running on the port, such as the LaunchAgent, keeps its own token: the app shows that one when it can read it from the installed LaunchAgent and the server accepts it, and otherwise says the token would be refused.
 
 For a server run on its own:
 

@@ -212,9 +212,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    LabeledContent("Token") {
-                        copyable(shareToken)
-                    }
+                    shareTokenRow
                 }
             }
         }
@@ -262,6 +260,29 @@ struct SettingsView: View {
 
     private func shareURL(_ address: String) -> String { "http://\(address):\(String(Pref.localPort))" }
 
+    /// The token row only appears once a request from another machine would be accepted with it. The server on the
+    /// port may have been started outside the app, and the token this switch would configure is then the wrong one.
+    @ViewBuilder private var shareTokenRow: some View {
+        switch server.share {
+        case .ready(let token, let external):
+            LabeledContent("Token") {
+                copyable(token)
+            }
+            if external {
+                footnote(String(localized: "Started outside the app; this is its token"))
+            }
+        case .checking, .none:
+            shareTokenPending
+        case .unreachable where !server.serving:
+            // Nothing is listening yet, so a failed check is the server still starting, not an address problem
+            shareTokenPending
+        case .rejected:
+            footnote(String(localized: "The server on this port refuses this token"))
+        case .unreachable:
+            footnote(String(localized: "Can't check the token from this Mac's addresses"))
+        }
+    }
+
     /// The first address on the LAN and the first on Tailscale (100.64.0.0/10), Tailscale last
     private var shareAddresses: [(address: String, tailscale: Bool)] {
         func isTailscale(_ ip: String) -> Bool {
@@ -299,11 +320,22 @@ struct SettingsView: View {
         ByteCountFormatter.string(fromByteCount: n, countStyle: .memory)
     }
 
+    /// Shown while the token has not been checked yet, including while this Mac's server is still starting
+    private var shareTokenPending: some View {
+        LabeledContent("Token") {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Checking the token…").foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func footnote(_ text: String) -> some View {
         Text(text)
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
+            .help(text)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -312,6 +344,7 @@ struct SettingsView: View {
         accessibility = AXIsProcessTrusted()
         microphone = AVCaptureDevice.authorizationStatus(for: .audio)
         addresses = NetworkAddresses.current()
+        // The sharing section shows the token only after the server accepts it, but the value has to exist first
         if shareServer && shareToken.isEmpty { shareToken = Pref.serverToken }
         service = Pref.server.isEmpty ? .unreachable : await Transcriber.check(server: Pref.server, token: Pref.token)
     }

@@ -25,6 +25,9 @@ final class LocalServer: ObservableObject {
     @Published private(set) var state = State.off
     /// Whether a server answers on the port right now; dictation is blocked with a reason while it doesn't
     @Published private(set) var serving = false
+    /// The token the sharing section may hand out. Nil states mean "don't show one": a server already on the port
+    /// keeps its own token, and the app's token would be refused.
+    @Published private(set) var share = Share.none
 
     static var logURL: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/Sottovoce/server.log")
@@ -53,6 +56,11 @@ final class LocalServer: ObservableObject {
     private var syncing = false
     private var lastWanted: Config?
     private var log: FileHandle?
+    /// Bumped to drop a share check that finished after a newer one started, or after sharing was turned off
+    private var shareGeneration = 0
+    private var shareInFlight = false
+    /// A token the server accepted can stop being accepted, so a settled result is rechecked, just not on every poll
+    private var lastShareCheck = Date.distantPast
 
     func start() {
         // Settings live in UserDefaults; any change may affect the server
@@ -122,14 +130,17 @@ final class LocalServer: ObservableObject {
     private func sync() async {
         guard !syncing else { return }
         syncing = true
-        defer { syncing = false }
+        defer {
+            syncing = false
+            noteShare()
+        }
 
         guard Pref.connectionMode == .local else {
-            download?.cancel()
-            download = nil
+            // The server on this Mac isn't wanted, but a download in flight is: switching to a remote server and
+            // back must not throw away gigabytes already fetched, and must not look like the download finished
             terminate()
             serving = false
-            state = .off
+            if case .downloading = state {} else { state = .off }
             return
         }
 
@@ -225,7 +236,9 @@ final class LocalServer: ObservableObject {
             }
             guard let self, self.downloadID == id else { return }
             self.download = nil
-            if case .downloading = self.state { self.state = .starting }
+            // .starting means "the download is in, the server comes up next", which is only true while this Mac's
+            // server is wanted. In remote mode the download merely finishes in the background
+            if case .downloading = self.state, Pref.connectionMode == .local { self.state = .starting }
             await self.sync()
         }
     }
@@ -277,6 +290,163 @@ final class LocalServer: ObservableObject {
         guard let process, process.isRunning else { return }
         stopping = true
         process.terminate()
+    }
+
+    /// What the sharing section may show. `external` is a server this app did not start: its token is not the one
+    /// the switch would have configured.
+    enum Share: Equatable {
+        case none
+        case checking
+        case ready(token: String, external: Bool)
+        /// The server on the port refused every token this app can see
+        case rejected
+        /// No address of this Mac answered, so the token cannot be checked. Loopback cannot be used for that:
+        /// it skips the bearer check and would accept a token the server refuses from anywhere else
+        case unreachable
+    }
+
+    private enum ShareVerdict: Equatable {
+        case accepted, rejected, unreachable
+    }
+
+    /// Learns which token the server on this port actually accepts, and only then allows it to be copied.
+    /// Checked from this Mac's own LAN addresses: a request to 127.0.0.1 never needs the token, so it cannot
+    /// tell a wrong one from the right one. A server already listening is left alone; when it is this app's
+    /// LaunchAgent, that plist's token is checked and shown instead of one the agent would refuse.
+    private func noteShare() {
+        guard Pref.connectionMode == .local, UserDefaults.standard.bool(forKey: Pref.shareServer) else {
+            shareGeneration += 1
+            shareInFlight = false
+            share = .none
+            lastShareCheck = .distantPast
+            return
+        }
+        let token = Pref.serverToken
+        if shareInFlight { return }
+        // While the server is still coming up there is nothing to recheck slowly: the next poll should try again.
+        // A result is only slow to recheck once the server has given an answer.
+        if Date().timeIntervalSince(lastShareCheck) < 10 {
+            switch share {
+            case .ready(let current, false) where current == token: return
+            case .ready(_, true), .rejected: return
+            default: break
+            }
+        }
+        let known = share
+        shareGeneration += 1
+        let generation = shareGeneration
+        shareInFlight = true
+        lastShareCheck = Date()
+        // Keep a settled result on screen while a recheck is in flight; flipping back to "checking" every poll just flickers
+        if case .ready = known {
+        } else if case .rejected = known {
+        } else if case .unreachable = known {
+        } else {
+            share = .checking
+        }
+        let port = Pref.localPort
+        let addresses = NetworkAddresses.current()
+        Task { [weak self] in
+            let verdict = await Self.shareVerdict(ownToken: token, port: port, addresses: addresses)
+            guard let self, self.shareGeneration == generation else { return }
+            self.shareInFlight = false
+            guard Pref.connectionMode == .local, UserDefaults.standard.bool(forKey: Pref.shareServer) else { return }
+            switch verdict {
+            case .ready(let accepted, let external):
+                self.share = .ready(token: accepted, external: external)
+            case .rejected:
+                self.share = .rejected
+            case .unreachable:
+                self.share = .unreachable
+            }
+        }
+    }
+
+    private enum ResolvedShare: Equatable {
+        case ready(token: String, external: Bool)
+        case rejected
+        case unreachable
+    }
+
+    /// The app's own token first. Only a refusal is conclusive: the server is up and does not want it, so try the
+    /// token of the LaunchAgent installed for this port before admitting there is nothing to copy.
+    private static func shareVerdict(ownToken: String, port: Int, addresses: [String]) async -> ResolvedShare {
+        switch await bearerVerdict(ownToken, port: port, addresses: addresses) {
+        case .accepted:
+            return .ready(token: ownToken, external: false)
+        case .unreachable:
+            return .unreachable
+        case .rejected:
+            guard let token = installedAgentToken(), token != ownToken else { return .rejected }
+            switch await bearerVerdict(token, port: port, addresses: addresses) {
+            case .accepted: return .ready(token: token, external: true)
+            case .rejected: return .rejected
+            case .unreachable: return .unreachable
+            }
+        }
+    }
+
+    /// One acceptance wins; a refusal wins over a timeout, since a server that answered has the say
+    private static func bearerVerdict(_ token: String, port: Int, addresses: [String]) async -> ShareVerdict {
+        guard !addresses.isEmpty else { return .unreachable }
+        return await withTaskGroup(of: ShareVerdict.self) { group in
+            for address in addresses {
+                group.addTask { await bearerVerdict(token, address: address, port: port) }
+            }
+            var rejected = false
+            for await verdict in group {
+                if case .accepted = verdict {
+                    group.cancelAll()
+                    return .accepted
+                }
+                if case .rejected = verdict { rejected = true }
+            }
+            return rejected ? .rejected : .unreachable
+        }
+    }
+
+    /// Bypasses the system proxy: the check has to hit this Mac, not whatever a proxy would do with a LAN address
+    private static let direct: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.connectionProxyDictionary = [
+            "HTTPEnable": 0,
+            "HTTPSEnable": 0,
+            "SOCKSEnable": 0,
+            "ProxyAutoConfigEnable": 0,
+        ]
+        return URLSession(configuration: config)
+    }()
+
+    private static func bearerVerdict(_ token: String, address: String, port: Int) async -> ShareVerdict {
+        var parts = URLComponents()
+        parts.scheme = "http"
+        parts.host = address
+        parts.port = port
+        parts.path = "/v1/models"
+        guard let url = parts.url else { return .unreachable }
+        var req = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, resp) = try? await direct.data(for: req),
+              let code = (resp as? HTTPURLResponse)?.statusCode else { return .unreachable }
+        if code == 401 { return .rejected }
+        // Anything other than this server's model list is not an acceptance: another app on the port, or a proxy
+        guard code == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              json["object"] as? String == "list" else { return .unreachable }
+        return .accepted
+    }
+
+    /// Token of the LaunchAgent this repo installs, if one is configured. Shown only after the server on the port
+    /// accepts it: the plist can be stale relative to the running process.
+    private static func installedAgentToken() -> String? {
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/sh.asgard.sottovoce.server.plist")
+        guard let data = try? Data(contentsOf: url),
+              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let env = plist["EnvironmentVariables"] as? [String: Any],
+              let token = env["SOTTOVOCE_TOKEN"] as? String else { return nil }
+        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private enum Probe { case sottovoce, other, free }
