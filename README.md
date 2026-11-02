@@ -224,4 +224,4 @@ Sottovoce stands on [Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR), [SenseVoic
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) · Contact: s@asgard.sh / s@asgard.me
